@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "mcp__uno-app__uno_health",
+      "mcp__uno__uno_platform_agent_rules_init",
+      "mcp__uno-app__uno_discover_tools",
+      "mcp__uno-app__uno_app_select_solution",
+      "mcp__uno__uno_platform_docs_search",
+      "mcp__uno__uno_platform_docs_fetch",
+      "mcp__uno-app__uno_execute_tool",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}
