@@ -38,11 +38,13 @@
 
 ## Product context
 
+- Read `docs/glossary.md` before using or introducing domain-specific terminology, to stay consistent with established definitions.
 - Read `docs/app_overview.md` before planning or implementing changes that affect application workflows, domain concepts, persistence, navigation, or architecture.
 - Read `docs/architecture.md` before changing project boundaries, messaging, state ownership, persistence responsibilities, UI structure, or target platforms.
 - Keep the overview synchronized when an approved change alters the behavior described there.
 - Keep the architecture document synchronized when an approved change alters the structure or responsibilities described there.
-- Ask for clarification when requested behavior conflicts with, or is not covered by, the documented product model.
+- When a term that looks domain-specific comes up and isn't in `docs/glossary.md`, add it there (or ask for its definition first if it's not already clear from context).
+- Ask for clarification when requested behavior conflicts with, or is not covered by, the documented product model, or when new information contradicts an existing glossary definition.
 
 ## Existing R implementation
 
