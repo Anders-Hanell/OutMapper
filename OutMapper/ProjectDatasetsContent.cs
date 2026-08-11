@@ -7,14 +7,17 @@ using Microsoft.UI.Xaml.Media;
 
 namespace OutMapper;
 
-public sealed class DatasetsContent : Border
+public sealed class ProjectDatasetsContent : Border
 {
     private readonly TextBlock _contentLabel;
     private readonly ContentControl _contentArea;
+    private readonly Button _currentDatasetsButton;
+    private readonly Button _createDatasetButton;
+    private string? _currentProjectName;
     private TextBox? _datasetNameInput;
     private TextBlock? _createResultLabel;
 
-    public DatasetsContent()
+    public ProjectDatasetsContent()
     {
         Padding = new Thickness(16);
         Background = GetThemeBrush("ApplicationPageBackgroundThemeBrush");
@@ -22,7 +25,7 @@ public sealed class DatasetsContent : Border
 
         _contentLabel = new TextBlock
         {
-            Text = "Current datasets panel",
+            Text = "Select a project to manage its datasets.",
             FontSize = 20,
             FontWeight = FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -31,6 +34,11 @@ public sealed class DatasetsContent : Border
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(16)
         };
+
+        _currentDatasetsButton = CreateNavButton("Current datasets", OnCurrentDatasetsClicked);
+        _createDatasetButton = CreateNavButton("Create dataset", OnCreateDatasetClicked);
+        _currentDatasetsButton.IsEnabled = false;
+        _createDatasetButton.IsEnabled = false;
 
         var navigationPanel = new StackPanel
         {
@@ -47,8 +55,8 @@ public sealed class DatasetsContent : Border
                     FontWeight = FontWeights.SemiBold,
                     Margin = new Thickness(0, 0, 0, 8)
                 },
-                CreateNavButton("Current datasets", OnCurrentDatasetsClicked),
-                CreateNavButton("Create dataset", OnCreateDatasetClicked)
+                _currentDatasetsButton,
+                _createDatasetButton
             }
         };
 
@@ -101,11 +109,27 @@ public sealed class DatasetsContent : Border
         });
     }
 
+    public void Refresh(string? projectName)
+    {
+        _currentProjectName = projectName;
+        _currentDatasetsButton.IsEnabled = projectName is not null;
+        _createDatasetButton.IsEnabled = projectName is not null;
+
+        if (projectName is null)
+        {
+            _contentArea.Content = _contentLabel;
+            UpdateContent("Select a project to manage its datasets.");
+            return;
+        }
+
+        OnCurrentDatasetsClicked();
+    }
+
     private void OnCurrentDatasetsClicked()
     {
         _contentArea.Content = _contentLabel;
         UpdateContent("Loading current datasets...");
-        MessageRouter.SendMessage(new DatasetListRequest(WorkspaceFolder: null));
+        MessageRouter.SendMessage(new DatasetListRequest(_currentProjectName, WorkspaceFolder: null));
     }
 
     private void OnCreateDatasetClicked()
@@ -160,6 +184,15 @@ public sealed class DatasetsContent : Border
 
     private void CreateDataset()
     {
+        if (_currentProjectName is null)
+        {
+            if (_createResultLabel is not null)
+            {
+                _createResultLabel.Text = "No project selected.";
+            }
+            return;
+        }
+
         var datasetName = _datasetNameInput?.Text?.Trim();
         if (string.IsNullOrWhiteSpace(datasetName))
         {
@@ -173,7 +206,7 @@ public sealed class DatasetsContent : Border
         {
             _createResultLabel.Text = $"Creating '{datasetName}'...";
         }
-        MessageRouter.SendMessage(new CreateDatasetRequest(datasetName, WorkspaceFolder: null));
+        MessageRouter.SendMessage(new CreateDatasetRequest(datasetName, _currentProjectName, WorkspaceFolder: null));
     }
 
     private Button CreateNavButton(string label, Action onClick)
@@ -199,6 +232,11 @@ public sealed class DatasetsContent : Border
     private void OnDatasetListResponseReceived(DatasetListResponse response)
     {
         // MessageRouter guarantees that incoming messages are processed on the UI thread.
+        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         var datasetsText = response.DatasetNames.Length > 0
             ? string.Join("\n", response.DatasetNames)
             : "No datasets found.";
@@ -209,6 +247,11 @@ public sealed class DatasetsContent : Border
     private void OnCreateDatasetResponseReceived(CreateDatasetResponse response)
     {
         // MessageRouter guarantees that incoming messages are processed on the UI thread.
+        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         if (_createResultLabel is not null)
         {
             _createResultLabel.Text = response.Success

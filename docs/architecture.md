@@ -17,7 +17,7 @@ The Uno Platform application and presentation layer. It currently owns:
 - UI composition and navigation.
 - Selection and local persistence of the current workspace path.
 - Project folder discovery and creation.
-- Dataset user interactions.
+- Dataset user interactions, scoped to the currently selected project.
 - PDF generation currently implemented on the desktop target.
 - The UI-side adapter to the task messaging system.
 
@@ -29,8 +29,8 @@ A .NET class library that processes background requests. It currently owns:
 
 - An in-process, single-reader message queue.
 - The current workspace path used by task operations.
-- Dataset discovery under the workspace `Datasets` directory.
-- Creation of `.omds` dataset files.
+- Dataset discovery under the current project's `Datasets` directory (`Projects/<project-name>/Datasets`).
+- Creation of `.omds` dataset files within the owning project's `Datasets` directory.
 - Emission of dataset responses.
 
 `TaskManager` references `Messages` and does not reference the UI project.
@@ -59,7 +59,7 @@ The NUnit test project. It references `OutMapper` and currently contains only th
 
 In debug builds, Uno Platform Studio support is enabled through `UseStudio()`.
 
-`MainPage` currently composes the primary navigation and content entirely in C#. The top-level areas are Settings, Datasets, and Projects. Settings contains its own navigation for Usage, Workspace, Current Projects, Select Project, and Create Project.
+`MainPage` currently composes the primary navigation and content entirely in C#. The top-level areas are Settings and Projects. Dataset management is not a top-level area; it is nested inside the Projects tab, scoped to the currently selected project. Settings contains its own navigation for Usage, Workspace, Current Projects, Select Project, and Create Project.
 
 Although the project enables the Uno MVUX feature, the currently implemented screens use programmatic UI construction and event handlers rather than MVUX models.
 
@@ -129,6 +129,8 @@ On startup and whenever the user selects a workspace, a `WorkspaceChanged` messa
 
 Some UI-side project operations read the persisted workspace path directly, while dataset operations send `null` for the workspace folder in their request messages and rely on `TaskManagerService` resolving its own synchronized state. The workspace therefore currently has two representations that must remain synchronized.
 
+Dataset requests additionally carry the selected project's name explicitly on every message; unlike the workspace path, `TaskManagerService` does not hold a synchronized "current project" field, so the UI is solely responsible for supplying a valid project name each time.
+
 ### Project selection
 
 The selected project name and its workspace path are persisted in `ApplicationData.Current.LocalSettings`. Only one project is selected at a time. Changing the workspace clears the selection, and a persisted selection is rejected if its project directory no longer exists.
@@ -151,14 +153,14 @@ The selected workspace is an ordinary filesystem directory.
 <workspace>/
 ├── Projects/
 │   └── <project-name>/
-├── Datasets/
-│   └── <dataset-name>.omds
+│       └── Datasets/
+│           └── <dataset-name>.omds
 └── Graph.pdf
 ```
 
 - Each immediate subdirectory of `Projects` is treated as a project.
 - Creating a project creates its directory after validating the name and checking for an existing directory.
-- Datasets are currently represented by empty `.omds` files created by `TaskManagerService`.
+- Datasets are currently represented by empty `.omds` files created by `TaskManagerService` inside their owning project's `Datasets` directory; a dataset cannot exist without an existing project.
 - The current PDF prototype writes `Graph.pdf` directly into the workspace root.
 
 No project metadata format, dataset schema, migration strategy, or transactional persistence layer is currently implemented.
@@ -174,7 +176,7 @@ The specialized content controls currently include:
 - `SettingsSelectProjectContent` for selecting the current project.
 - `SettingsCreateProjectContent` for project creation.
 - `SettingsMultitaskingContent` for choosing how many cores calculations may use.
-- `DatasetsContent` for dataset listing and creation.
+- `ProjectDatasetsContent` for dataset listing and creation within the Projects tab, scoped to the selected project.
 
 `ProjectFolderService` contains the shared filesystem rules used by the two project-related Settings panels.
 

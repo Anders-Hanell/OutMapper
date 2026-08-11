@@ -33,7 +33,7 @@ The clinical or research outcome against which physiological values are analyzed
 
 ## Application structure
 
-OutMapper currently includes concepts for workspaces, projects, and datasets. Their complete domain relationships and responsibilities will be documented as the product model is clarified.
+OutMapper currently includes concepts for workspaces, projects, and datasets. A workspace may contain multiple projects, and each dataset belongs to exactly one project. Other domain relationships and responsibilities will be documented as the product model is clarified.
 
 ## Research workflow
 
@@ -42,6 +42,8 @@ The complete workflow for importing data, configuring an analysis, generating an
 ## Data and folder structure
 
 The application uses a selected workspace folder. A workspace may contain a `Projects` directory, where each immediate subdirectory represents one project. Users may select one project at a time as the current project.
+
+Each project may contain a `Datasets` directory. A dataset is scoped to exactly one project and has no existence independent of a project.
 
 Additional workspace contents, dataset formats, project metadata, and persistence rules are not yet fully documented.
 

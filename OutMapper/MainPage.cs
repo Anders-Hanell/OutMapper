@@ -109,15 +109,14 @@ public sealed partial class MainPage : Page
 
         Grid.SetColumn(settingsInnerContentControl, 1);
 
-        var dataContent = new DatasetsContent();
+        var projectDatasetsContent = new ProjectDatasetsContent();
 
         var projectsStatusLabel = new TextBlock
         {
             Text = "Projects view",
             HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
             FontSize = 20,
-            Margin = new Thickness(0, 0, 16, 0)
+            Margin = new Thickness(0, 0, 0, 16)
         };
 
         var generatePdfButton = new Button
@@ -125,7 +124,8 @@ public sealed partial class MainPage : Page
             Content = "Generate pdf",
             MinHeight = 44,
             MinWidth = 140,
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 16)
         };
         generatePdfButton.Click += (_, _) => GeneratePdf();
 
@@ -135,12 +135,11 @@ public sealed partial class MainPage : Page
             Child = new StackPanel
             {
                 Spacing = 12,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
                 Children =
                 {
                     projectsStatusLabel,
-                    generatePdfButton
+                    generatePdfButton,
+                    projectDatasetsContent
                 }
             }
         };
@@ -151,22 +150,20 @@ public sealed partial class MainPage : Page
         };
 
         var settingsButton = new Button { Content = "Settings" };
-        var dataButton = new Button { Content = "Datasets" };
         var projectsButton = new Button { Content = "Projects" };
 
         settingsButton.Click += (_, _) => contentControl.Content = settingsContent;
-        dataButton.Click += (_, _) => contentControl.Content = dataContent;
         projectsButton.Click += (_, _) =>
         {
             var selectedProject = ProjectFolderService.GetSelectedProjectName(out var error);
             projectsStatusLabel.Text = error ?? (selectedProject is null
                 ? "No project selected."
                 : $"Current project: {selectedProject}");
+            projectDatasetsContent.Refresh(selectedProject);
             contentControl.Content = projectsContent;
         };
 
         navigationPanel.Children.Add(settingsButton);
-        navigationPanel.Children.Add(dataButton);
         navigationPanel.Children.Add(projectsButton);
 
         Grid.SetRow(contentControl, 1);

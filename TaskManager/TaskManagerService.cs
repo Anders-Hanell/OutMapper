@@ -70,9 +70,9 @@ internal static class TaskManagerService
     private static Task HandleDatasetListRequestAsync(DatasetListRequest message)
     {
         var workspaceFolder = message.WorkspaceFolder ?? _workspaceFolder;
-        var datasetNames = LocateDatasets(workspaceFolder);
+        var datasetNames = LocateDatasets(workspaceFolder, message.ProjectName);
 
-        var response = new DatasetListResponse(datasetNames);
+        var response = new DatasetListResponse(message.ProjectName, datasetNames);
 
         MessageRouter.Emit(response);
         return Task.CompletedTask;
@@ -81,22 +81,29 @@ internal static class TaskManagerService
     private static Task HandleCreateDatasetRequestAsync(CreateDatasetRequest message)
     {
         var workspaceFolder = message.WorkspaceFolder ?? _workspaceFolder;
-        var createdDataset = CreateDataset(workspaceFolder, message.DatasetName);
+        var createdDataset = CreateDataset(workspaceFolder, message.ProjectName, message.DatasetName);
 
-        var response = new CreateDatasetResponse(message.DatasetName, createdDataset);
+        var response = new CreateDatasetResponse(message.DatasetName, message.ProjectName, createdDataset);
 
         MessageRouter.Emit(response);
         return Task.CompletedTask;
     }
 
-    private static bool CreateDataset(string? workspaceFolder, string datasetName)
+    private static bool CreateDataset(string? workspaceFolder, string? projectName, string datasetName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(datasetName))
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
+            string.IsNullOrWhiteSpace(datasetName))
         {
             return false;
         }
 
-        var datasetsFolder = Path.Combine(workspaceFolder, "Datasets");
+        var projectFolder = Path.Combine(workspaceFolder, "Projects", projectName);
+        if (!Directory.Exists(projectFolder))
+        {
+            return false;
+        }
+
+        var datasetsFolder = Path.Combine(projectFolder, "Datasets");
         Directory.CreateDirectory(datasetsFolder);
 
         var datasetFile = Path.Combine(datasetsFolder, datasetName + ".omds");
@@ -109,14 +116,15 @@ internal static class TaskManagerService
         return true;
     }
 
-    private static ImmutableArray<string> LocateDatasets(string? workspaceFolder)
+    private static ImmutableArray<string> LocateDatasets(string? workspaceFolder, string? projectName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder))
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+            string.IsNullOrWhiteSpace(projectName))
         {
             return ImmutableArray<string>.Empty;
         }
 
-        var datasetsFolder = Path.Combine(workspaceFolder, "Datasets");
+        var datasetsFolder = Path.Combine(workspaceFolder, "Projects", projectName, "Datasets");
         if (!Directory.Exists(datasetsFolder))
         {
             return ImmutableArray<string>.Empty;

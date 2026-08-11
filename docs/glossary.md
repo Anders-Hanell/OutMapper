@@ -28,6 +28,12 @@ A graph visualizing how common a range of values is.
 
 A combination of multiple graphs. The previous R implementation could not create figures; OutMapper is planned to support creating them.
 
+### Organization
+
+#### Project
+
+A user-created, named container that owns [Dataset](#dataset)s. A workspace (the folder the user selects on disk) may contain multiple projects; exactly one project is selected as the current project at a time.
+
 ### Data
 
 #### Time series
@@ -44,7 +50,7 @@ Also referred to elsewhere as "physiological variable" — `Channel` is the pref
 
 #### Dataset
 
-A collection of [Time series](#time-series) (i.e. covers multiple patients).
+A collection of [Time series](#time-series) (i.e. covers multiple patients). A Dataset belongs to exactly one [Project](#project).
 
 #### Cohort
 
