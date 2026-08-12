@@ -127,9 +127,14 @@ public sealed class ProjectDatasetsContent : Border
 
     private void OnCurrentDatasetsClicked()
     {
+        if (_currentProjectName is null)
+        {
+            return;
+        }
+
         _contentArea.Content = _contentLabel;
         UpdateContent("Loading current datasets...");
-        MessageRouter.SendMessage(new DatasetListRequest(_currentProjectName, WorkspaceFolder: null));
+        MessageRouter.SendMessage(new DatasetListRequest(_currentProjectName));
     }
 
     private void OnCreateDatasetClicked()
@@ -206,7 +211,7 @@ public sealed class ProjectDatasetsContent : Border
         {
             _createResultLabel.Text = $"Creating '{datasetName}'...";
         }
-        MessageRouter.SendMessage(new CreateDatasetRequest(datasetName, _currentProjectName, WorkspaceFolder: null));
+        MessageRouter.SendMessage(new CreateDatasetRequest(datasetName, _currentProjectName));
     }
 
     private Button CreateNavButton(string label, Action onClick)

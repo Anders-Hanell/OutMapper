@@ -46,7 +46,15 @@ internal static class TaskManagerService
     {
         await foreach (var message in _messageChannel.Reader.ReadAllAsync(cancellationToken))
         {
-            await ProcessMessageAsync(message);
+            try
+            {
+                await ProcessMessageAsync(message);
+            }
+            catch (Exception)
+            {
+                // A single message must never be able to bring down the processing loop -
+                // doing so would silently stop all future requests from ever getting a response.
+            }
         }
     }
 
@@ -69,8 +77,7 @@ internal static class TaskManagerService
 
     private static Task HandleDatasetListRequestAsync(DatasetListRequest message)
     {
-        var workspaceFolder = message.WorkspaceFolder ?? _workspaceFolder;
-        var datasetNames = LocateDatasets(workspaceFolder, message.ProjectName);
+        var datasetNames = LocateDatasets(_workspaceFolder, message.ProjectName);
 
         var response = new DatasetListResponse(message.ProjectName, datasetNames);
 
@@ -80,8 +87,7 @@ internal static class TaskManagerService
 
     private static Task HandleCreateDatasetRequestAsync(CreateDatasetRequest message)
     {
-        var workspaceFolder = message.WorkspaceFolder ?? _workspaceFolder;
-        var createdDataset = CreateDataset(workspaceFolder, message.ProjectName, message.DatasetName);
+        var createdDataset = CreateDataset(_workspaceFolder, message.ProjectName, message.DatasetName);
 
         var response = new CreateDatasetResponse(message.DatasetName, message.ProjectName, createdDataset);
 
@@ -103,17 +109,24 @@ internal static class TaskManagerService
             return false;
         }
 
-        var datasetsFolder = Path.Combine(projectFolder, "Datasets");
-        Directory.CreateDirectory(datasetsFolder);
+        try
+        {
+            var datasetsFolder = Path.Combine(projectFolder, "Datasets");
+            Directory.CreateDirectory(datasetsFolder);
 
-        var datasetFile = Path.Combine(datasetsFolder, datasetName + ".omds");
-        if (File.Exists(datasetFile))
+            var datasetFile = Path.Combine(datasetsFolder, datasetName + ".omds");
+            if (File.Exists(datasetFile))
+            {
+                return false;
+            }
+
+            using var stream = File.Create(datasetFile);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
             return false;
         }
-
-        using var stream = File.Create(datasetFile);
-        return true;
     }
 
     private static ImmutableArray<string> LocateDatasets(string? workspaceFolder, string? projectName)
