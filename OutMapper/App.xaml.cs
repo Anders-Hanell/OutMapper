@@ -20,6 +20,8 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        GatewayToTaskManager.Initialize();
+
         // Load WinUI Resources
         Resources.Build(r => r.Merged(
             new XamlControlsResources()));

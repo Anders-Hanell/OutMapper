@@ -2,22 +2,19 @@ using Messages;
 
 namespace TaskManager;
 
-public static class MessageRouter
+/// <summary>
+/// Casts an incoming Message to its concrete subtype and calls the matching handler directly.
+/// </summary>
+internal static class MessageRouter
 {
-    public static event EventHandler<Message>? MessageReceived;
-
-    public static bool SendMessage(Message message)
+    internal static Task Route(Message message)
     {
-        return TaskManagerService.EnqueueMessage(message);
-    }
-
-    public static void ReceiveMessage(EventHandler<Message> handler)
-    {
-        MessageReceived += handler;
-    }
-
-    internal static void Emit(Message message)
-    {
-        MessageReceived?.Invoke(null, message);
+        return message switch
+        {
+            WorkspaceChanged workspaceChanged => TaskManagerService.HandleWorkspaceChangedAsync(workspaceChanged),
+            DatasetListRequest datasetListRequest => TaskManagerService.HandleDatasetListRequestAsync(datasetListRequest),
+            CreateDatasetRequest createDatasetRequest => TaskManagerService.HandleCreateDatasetRequestAsync(createDatasetRequest),
+            _ => Task.CompletedTask
+        };
     }
 }

@@ -9,6 +9,8 @@ namespace OutMapper;
 
 public sealed class ProjectDatasetsContent : Border
 {
+    internal static ProjectDatasetsContent? Current { get; private set; }
+
     private readonly TextBlock _contentLabel;
     private readonly ContentControl _contentArea;
     private readonly Button _currentDatasetsButton;
@@ -95,18 +97,7 @@ public sealed class ProjectDatasetsContent : Border
 
         Child = mainGrid;
 
-        MessageRouter.ReceiveMessage((s, m) =>
-        {
-            switch (m)
-            {
-                case DatasetListResponse listResponse:
-                    OnDatasetListResponseReceived(listResponse);
-                    break;
-                case CreateDatasetResponse createResponse:
-                    OnCreateDatasetResponseReceived(createResponse);
-                    break;
-            }
-        });
+        Current = this;
     }
 
     public void Refresh(string? projectName)
@@ -234,9 +225,9 @@ public sealed class ProjectDatasetsContent : Border
         _contentLabel.Text = title;
     }
 
-    private void OnDatasetListResponseReceived(DatasetListResponse response)
+    internal void OnDatasetListResponseReceived(DatasetListResponse response)
     {
-        // MessageRouter guarantees that incoming messages are processed on the UI thread.
+        // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
         if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
         {
             return;
@@ -249,9 +240,9 @@ public sealed class ProjectDatasetsContent : Border
         _contentLabel.Text = $"Datasets:\n{datasetsText}";
     }
 
-    private void OnCreateDatasetResponseReceived(CreateDatasetResponse response)
+    internal void OnCreateDatasetResponseReceived(CreateDatasetResponse response)
     {
-        // MessageRouter guarantees that incoming messages are processed on the UI thread.
+        // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
         if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
         {
             return;

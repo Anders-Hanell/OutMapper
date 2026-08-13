@@ -1,26 +1,27 @@
-using System;
 using Messages;
-using Microsoft.UI.Dispatching;
 
 namespace OutMapper;
 
+/// <summary>
+/// Casts an incoming Message to its concrete subtype and calls the matching handler directly.
+/// </summary>
 public static class MessageRouter
 {
-    public static bool SendMessage(Message message)
+    public static void SendMessage(Message message)
     {
-        return TaskManager.MessageRouter.SendMessage(message);
+        GatewayToTaskManager.SendMessage(message);
     }
 
-    public static void ReceiveMessage(EventHandler<Message> handler)
+    internal static void Route(Message message)
     {
-        // Captured here (rather than in a static field initializer) so it is guaranteed to be
-        // resolved on the calling UI thread at the moment a real view actually subscribes,
-        // instead of at some unspecified earlier point during type initialization.
-        var uiDispatcher = DispatcherQueue.GetForCurrentThread();
-
-        TaskManager.MessageRouter.ReceiveMessage((s, m) =>
+        switch (message)
         {
-            uiDispatcher?.TryEnqueue(() => handler(s, m));
-        });
+            case DatasetListResponse listResponse:
+                ProjectDatasetsContent.Current?.OnDatasetListResponseReceived(listResponse);
+                break;
+            case CreateDatasetResponse createResponse:
+                ProjectDatasetsContent.Current?.OnCreateDatasetResponseReceived(createResponse);
+                break;
+        }
     }
 }

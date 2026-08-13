@@ -48,7 +48,7 @@ internal static class TaskManagerService
         {
             try
             {
-                await ProcessMessageAsync(message);
+                await MessageRouter.Route(message);
             }
             catch (Exception)
             {
@@ -58,40 +58,29 @@ internal static class TaskManagerService
         }
     }
 
-    private static Task ProcessMessageAsync(Message message)
-    {
-        return message switch
-        {
-            WorkspaceChanged workspaceChanged => HandleWorkspaceChangedAsync(workspaceChanged),
-            DatasetListRequest datasetListRequest => HandleDatasetListRequestAsync(datasetListRequest),
-            CreateDatasetRequest createDatasetRequest => HandleCreateDatasetRequestAsync(createDatasetRequest),
-            _ => Task.CompletedTask
-        };
-    }
-
-    private static Task HandleWorkspaceChangedAsync(WorkspaceChanged message)
+    internal static Task HandleWorkspaceChangedAsync(WorkspaceChanged message)
     {
         _workspaceFolder = message.WorkspaceFolder;
         return Task.CompletedTask;
     }
 
-    private static Task HandleDatasetListRequestAsync(DatasetListRequest message)
+    internal static Task HandleDatasetListRequestAsync(DatasetListRequest message)
     {
         var datasetNames = LocateDatasets(_workspaceFolder, message.ProjectName);
 
         var response = new DatasetListResponse(message.ProjectName, datasetNames);
 
-        MessageRouter.Emit(response);
+        GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;
     }
 
-    private static Task HandleCreateDatasetRequestAsync(CreateDatasetRequest message)
+    internal static Task HandleCreateDatasetRequestAsync(CreateDatasetRequest message)
     {
         var createdDataset = CreateDataset(_workspaceFolder, message.ProjectName, message.DatasetName);
 
         var response = new CreateDatasetResponse(message.DatasetName, message.ProjectName, createdDataset);
 
-        MessageRouter.Emit(response);
+        GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;
     }
 

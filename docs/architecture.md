@@ -19,7 +19,7 @@ The Uno Platform application and presentation layer. It currently owns:
 - Project folder discovery and creation.
 - Dataset user interactions, scoped to the currently selected project.
 - PDF generation currently implemented on the desktop target.
-- The UI-side adapter to the task messaging system.
+- The UI-side adapter to the task messaging system, via `OutMapper.GatewayToTaskManager`.
 
 `OutMapper` references both `TaskManager` and `Messages`.
 
@@ -35,7 +35,7 @@ A .NET class library that processes background requests. It currently owns:
 
 `TaskManager` references `Messages` and does not reference the UI project.
 
-`TaskManagerService` is `internal`; only `TaskManager.MessageRouter` is a public entry point, so the message-only boundary with `OutMapper` is enforced by the compiler rather than by convention alone.
+`TaskManagerService` and `TaskManager.MessageRouter` are both `internal`; `TaskManager.GatewayToOutMapper` is the only public entry point, so the message-only boundary with `OutMapper` is enforced by the compiler rather than by convention alone.
 
 ### `Messages`
 
@@ -65,13 +65,23 @@ Although the project enables the Uno MVUX feature, the currently implemented scr
 
 ## Communication and concurrency
 
-Communication between the UI and task layer is in-process:
+Communication between the UI and task layer is in-process and crosses a single barrier in each direction: a **Gateway**. `OutMapper.GatewayToTaskManager` and `TaskManager.GatewayToOutMapper` are the only two classes allowed to reach across the `OutMapper`/`TaskManager` project boundary; every message enters or leaves a project through its Gateway. Crossing a Gateway is also where the thread switch to or from the UI thread happens — that responsibility belongs to the Gateway, not to `MessageRouter`.
 
-1. `OutMapper.MessageRouter` forwards a `Messages.Message` to `TaskManager.MessageRouter`.
-2. `TaskManager.MessageRouter` enqueues it in `TaskManagerService`.
-3. `TaskManagerService` processes messages sequentially through an unbounded `Channel<Message>` with one reader.
-4. Responses are emitted through `TaskManager.MessageRouter.MessageReceived`.
-5. `OutMapper.MessageRouter` dispatches response handlers back onto the UI thread through `DispatcherQueue`.
+Outbound, `OutMapper` → `TaskManager`:
+
+1. UI code calls `OutMapper.MessageRouter.SendMessage`, which forwards to `OutMapper.GatewayToTaskManager.SendMessage`.
+2. `GatewayToTaskManager` calls `TaskManager.GatewayToOutMapper.ReceiveMessage` directly (`OutMapper` holds a project reference to `TaskManager`, so no indirection is needed for this direction).
+3. `GatewayToOutMapper.ReceiveMessage` enqueues the message into `TaskManagerService`'s unbounded, single-reader `Channel<Message>`. This enqueue is the thread switch: `TaskManagerService`'s background consumer (started with `Task.Run`) dequeues and processes messages sequentially, off the UI thread.
+4. On that background thread, `TaskManager.MessageRouter.Route` casts the message to its concrete subtype and calls the matching `TaskManagerService` handler directly.
+
+Return, `TaskManager` → `OutMapper` (for messages that produce a response):
+
+1. The `TaskManagerService` handler calls `TaskManager.GatewayToOutMapper.SendMessage` with the response.
+2. `TaskManager` has no project reference to `OutMapper`, so `GatewayToOutMapper` forwards the response to a registered `TaskManager.IGatewayReceiver` — the callback that `OutMapper.GatewayToTaskManager` registers with it via `GatewayToTaskManager.Initialize()`, called once from `App.OnLaunched` on the UI thread.
+3. That callback marshals onto the UI thread with `DispatcherQueue.TryEnqueue` before doing anything else — the thread switch back to the UI thread.
+4. Once on the UI thread, `OutMapper.MessageRouter.Route` casts the response to its concrete subtype and calls the matching handler directly on the live control instance (for example `ProjectDatasetsContent.Current`).
+
+Neither `MessageRouter` uses events; once the concrete message subtype is known, dispatch in both directions is a direct function call. `ProjectDatasetsContent` (currently the only response consumer) exposes the live instance to route to as a static `Current` reference, since exactly one instance exists for the app's lifetime.
 
 This is not currently an external process, network protocol, or durable queue. Message state is held only for the lifetime of the application process.
 
@@ -79,9 +89,10 @@ This is not currently an external process, network protocol, or durable queue. M
 
 The architectural boundary between the `OutMapper` UI project and `TaskManager` is intended to allow only immutable messages to pass between them.
 
-- `OutMapper` must not read or modify TaskManager state directly. `TaskManagerService`'s `internal` visibility enforces this at compile time; `TaskManager.MessageRouter` is the only public entry point.
+- `OutMapper` must not read or modify TaskManager state directly. `TaskManagerService`'s and `TaskManager.MessageRouter`'s `internal` visibility enforces this at compile time; `TaskManager.GatewayToOutMapper` is the only public entry point.
 - A message received by `OutMapper` must be dispatched to the main UI thread before OutMapper processes it or updates controls.
 - Message processing and task work in `TaskManager` must not execute on the main UI thread.
+- These two invariants are owned by the Gateway classes: `GatewayToTaskManager` and `GatewayToOutMapper` are where the thread switch happens, so `MessageRouter.Route` on either side can assume it is already running on the correct thread.
 - Message payloads must be deeply immutable; immutable record properties are insufficient when a payload contains mutable collections such as arrays. `DatasetListResponse.DatasetNames` uses `ImmutableArray<string>` to satisfy this.
 
 ### Current sequential processing
