@@ -100,7 +100,7 @@ internal static class TaskManagerService
 
         try
         {
-            var datasetsFolder = Path.Combine(projectFolder, "Datasets");
+            var datasetsFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Datasets");
             Directory.CreateDirectory(datasetsFolder);
 
             var datasetFile = Path.Combine(datasetsFolder, datasetName + ".omds");
@@ -126,7 +126,7 @@ internal static class TaskManagerService
             return ImmutableArray<string>.Empty;
         }
 
-        var datasetsFolder = Path.Combine(workspaceFolder, "Projects", projectName, "Datasets");
+        var datasetsFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Datasets");
         if (!Directory.Exists(datasetsFolder))
         {
             return ImmutableArray<string>.Empty;

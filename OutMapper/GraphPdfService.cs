@@ -14,7 +14,15 @@ internal static class GraphPdfService
             return;
         }
 
-        var outputFile = Path.Combine(workspaceFolder, "Graph.pdf");
+        var projectName = ProjectFolderService.GetSelectedProjectName(out _);
+        if (string.IsNullOrWhiteSpace(projectName))
+        {
+            return;
+        }
+
+        var outputFolder = Path.Combine(workspaceFolder, "Projects", projectName, ProjectFolderService.ProjectOutputFolderName);
+        Directory.CreateDirectory(outputFolder);
+        var outputFile = Path.Combine(outputFolder, "Graph.pdf");
 
         using var stream = File.OpenWrite(outputFile);
         using var document = SKDocument.CreatePdf(stream);

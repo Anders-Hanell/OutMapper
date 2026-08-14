@@ -162,17 +162,20 @@ The selected workspace is an ordinary filesystem directory.
 
 ```text
 <workspace>/
-├── Projects/
-│   └── <project-name>/
-│       └── Datasets/
-│           └── <dataset-name>.omds
-└── Graph.pdf
+└── Projects/
+    └── <project-name>/
+        ├── OutMapper_InternalFiles/
+        │   └── Datasets/
+        │       └── <dataset-name>.omds
+        └── OutMapper_ProjectOutput/
+            └── Graph.pdf
 ```
 
 - Each immediate subdirectory of `Projects` is treated as a project.
-- Creating a project creates its directory after validating the name and checking for an existing directory.
-- Datasets are currently represented by empty `.omds` files created by `TaskManagerService` inside their owning project's `Datasets` directory; a dataset cannot exist without an existing project.
-- The current PDF prototype writes `Graph.pdf` directly into the workspace root.
+- Creating a project creates its directory, then its `OutMapper_InternalFiles` and `OutMapper_ProjectOutput` subdirectories, after validating the name and checking for an existing directory.
+- `OutMapper_InternalFiles` holds files the app manages internally, such as `Datasets`. `OutMapper_ProjectOutput` holds files generated for the user, such as the exported PDF.
+- Datasets are currently represented by empty `.omds` files created by `TaskManagerService` inside their owning project's `OutMapper_InternalFiles/Datasets` directory; a dataset cannot exist without an existing project.
+- The current PDF prototype writes `Graph.pdf` into the selected project's `OutMapper_ProjectOutput` directory.
 
 No project metadata format, dataset schema, migration strategy, or transactional persistence layer is currently implemented.
 

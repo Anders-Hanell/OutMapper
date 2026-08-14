@@ -7,6 +7,8 @@ internal static class ProjectFolderService
 {
     private const string SelectedProjectNameKey = "SelectedProjectName";
     private const string SelectedProjectWorkspacePathKey = "SelectedProjectWorkspacePath";
+    internal const string InternalFilesFolderName = "OutMapper_InternalFiles";
+    internal const string ProjectOutputFolderName = "OutMapper_ProjectOutput";
 
     private static readonly char[] InvalidFolderNameCharacters =
         System.IO.Path.GetInvalidFileNameChars()
@@ -81,6 +83,8 @@ internal static class ProjectFolderService
             }
 
             Directory.CreateDirectory(projectFolder);
+            Directory.CreateDirectory(System.IO.Path.Combine(projectFolder, InternalFilesFolderName));
+            Directory.CreateDirectory(System.IO.Path.Combine(projectFolder, ProjectOutputFolderName));
             message = $"Project '{projectName}' was created successfully.";
             return true;
         }
