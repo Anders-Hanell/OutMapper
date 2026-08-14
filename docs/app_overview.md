@@ -45,6 +45,8 @@ The application uses a selected workspace folder. A workspace may contain a `Pro
 
 Each project contains an `OutMapper_InternalFiles` directory (which may contain a `Datasets` directory) and an `OutMapper_ProjectOutput` directory (for generated files such as exported PDFs). A dataset is scoped to exactly one project and has no existence independent of a project.
 
+Creating a dataset also creates a same-named folder inside `Datasets`, containing an `Imported raw data` subfolder. When the user selects a folder of raw data while creating the dataset, its `.csv` files are copied into `Imported raw data`.
+
 Additional workspace contents, dataset formats, project metadata, and persistence rules are not yet fully documented.
 
 Future project calculations may continue in the background when the user selects another project. The execution and state model for that behavior has not yet been designed or implemented.

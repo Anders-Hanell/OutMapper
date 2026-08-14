@@ -29,8 +29,8 @@ A .NET class library that processes background requests. It currently owns:
 
 - An in-process, single-reader message queue.
 - The current workspace path used by task operations.
-- Dataset discovery under the current project's `Datasets` directory (`Projects/<project-name>/Datasets`).
-- Creation of `.omds` dataset files within the owning project's `Datasets` directory.
+- Dataset discovery under the current project's `Datasets` directory (`Projects/<project-name>/OutMapper_InternalFiles/Datasets`).
+- Creation of `.omds` dataset files and same-named dataset folders (each containing an `Imported raw data` subfolder) within the owning project's `Datasets` directory, optionally copying `.csv` files from a user-selected raw data folder into `Imported raw data`.
 - Emission of dataset responses.
 
 `TaskManager` references `Messages` and does not reference the UI project.
@@ -166,7 +166,10 @@ The selected workspace is an ordinary filesystem directory.
     └── <project-name>/
         ├── OutMapper_InternalFiles/
         │   └── Datasets/
-        │       └── <dataset-name>.omds
+        │       ├── <dataset-name>.omds
+        │       └── <dataset-name>/
+        │           └── Imported raw data/
+        │               └── <copied .csv files>
         └── OutMapper_ProjectOutput/
             └── Graph.pdf
 ```
@@ -174,7 +177,7 @@ The selected workspace is an ordinary filesystem directory.
 - Each immediate subdirectory of `Projects` is treated as a project.
 - Creating a project creates its directory, then its `OutMapper_InternalFiles` and `OutMapper_ProjectOutput` subdirectories, after validating the name and checking for an existing directory.
 - `OutMapper_InternalFiles` holds files the app manages internally, such as `Datasets`. `OutMapper_ProjectOutput` holds files generated for the user, such as the exported PDF.
-- Datasets are currently represented by empty `.omds` files created by `TaskManagerService` inside their owning project's `OutMapper_InternalFiles/Datasets` directory; a dataset cannot exist without an existing project.
+- Datasets are currently represented by an empty `.omds` file and a same-named folder, both created by `TaskManagerService` inside their owning project's `OutMapper_InternalFiles/Datasets` directory; a dataset cannot exist without an existing project. The dataset folder contains an `Imported raw data` subfolder, into which `.csv` files are copied from the raw data folder the user selected during dataset creation, if any.
 - The current PDF prototype writes `Graph.pdf` into the selected project's `OutMapper_ProjectOutput` directory.
 
 No project metadata format, dataset schema, migration strategy, or transactional persistence layer is currently implemented.

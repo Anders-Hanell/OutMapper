@@ -1,17 +1,22 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using Messages;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Windows.Storage.Pickers;
 
 namespace OutMapper;
 
 public sealed class ProjectCreateDatasetContent : Border
 {
     private readonly TextBox _datasetNameInput;
+    private readonly TextBlock _selectedFolderLabel;
     private readonly TextBlock _resultLabel;
     private string? _currentProjectName;
+    private string? _selectedRawDataFolderPath;
 
     public ProjectCreateDatasetContent()
     {
@@ -23,6 +28,21 @@ public sealed class ProjectCreateDatasetContent : Border
         {
             PlaceholderText = "Enter dataset name",
             MinWidth = 280,
+            Margin = new Thickness(0, 0, 0, 12)
+        };
+
+        var selectFolderButton = new Button
+        {
+            Content = "Select raw data folder",
+            HorizontalAlignment = HorizontalAlignment.Left,
+            MinHeight = 44
+        };
+
+        selectFolderButton.Click += (_, _) => SelectRawDataFolder();
+
+        _selectedFolderLabel = new TextBlock
+        {
+            Text = "No raw data folder selected.",
             Margin = new Thickness(0, 0, 0, 12)
         };
 
@@ -56,6 +76,8 @@ public sealed class ProjectCreateDatasetContent : Border
                     Margin = new Thickness(0, 0, 0, 8)
                 },
                 _datasetNameInput,
+                selectFolderButton,
+                _selectedFolderLabel,
                 createButton,
                 _resultLabel
             }
@@ -67,6 +89,32 @@ public sealed class ProjectCreateDatasetContent : Border
         _currentProjectName = projectName;
         _datasetNameInput.Text = string.Empty;
         _resultLabel.Text = string.Empty;
+        _selectedRawDataFolderPath = null;
+        _selectedFolderLabel.Text = "No raw data folder selected.";
+    }
+
+    private async void SelectRawDataFolder()
+    {
+        var folder = await PickRawDataFolderAsync();
+        if (folder is null)
+        {
+            return;
+        }
+
+        _selectedRawDataFolderPath = folder.Path;
+
+        var csvFileCount = Directory.GetFiles(folder.Path, "*.csv", SearchOption.TopDirectoryOnly).Length;
+        _selectedFolderLabel.Text = $"{folder.Path} ({csvFileCount} CSV file(s) found)";
+    }
+
+    private static async Task<Windows.Storage.StorageFolder?> PickRawDataFolderAsync()
+    {
+        var picker = new FolderPicker
+        {
+            SuggestedStartLocation = PickerLocationId.Desktop
+        };
+        picker.FileTypeFilter.Add("*");
+        return await picker.PickSingleFolderAsync();
     }
 
     private void CreateDataset()
@@ -85,7 +133,7 @@ public sealed class ProjectCreateDatasetContent : Border
         }
 
         _resultLabel.Text = $"Creating '{datasetName}'...";
-        MessageRouter.SendMessage(new CreateDatasetRequest(datasetName, _currentProjectName));
+        MessageRouter.SendMessage(new CreateDatasetRequest(datasetName, _currentProjectName, _selectedRawDataFolderPath));
     }
 
     internal void OnCreateDatasetResponseReceived(CreateDatasetResponse response)

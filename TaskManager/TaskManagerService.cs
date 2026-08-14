@@ -76,7 +76,7 @@ internal static class TaskManagerService
 
     internal static Task HandleCreateDatasetRequestAsync(CreateDatasetRequest message)
     {
-        var createdDataset = CreateDataset(_workspaceFolder, message.ProjectName, message.DatasetName);
+        var createdDataset = CreateDataset(_workspaceFolder, message.ProjectName, message.DatasetName, message.RawDataFolderPath);
 
         var response = new CreateDatasetResponse(message.DatasetName, message.ProjectName, createdDataset);
 
@@ -84,7 +84,7 @@ internal static class TaskManagerService
         return Task.CompletedTask;
     }
 
-    private static bool CreateDataset(string? workspaceFolder, string? projectName, string datasetName)
+    private static bool CreateDataset(string? workspaceFolder, string? projectName, string datasetName, string? rawDataFolderPath)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
             string.IsNullOrWhiteSpace(datasetName))
@@ -109,7 +109,23 @@ internal static class TaskManagerService
                 return false;
             }
 
-            using var stream = File.Create(datasetFile);
+            using (File.Create(datasetFile))
+            {
+            }
+
+            var datasetFolder = Path.Combine(datasetsFolder, datasetName);
+            var importedRawDataFolder = Path.Combine(datasetFolder, "Imported raw data");
+            Directory.CreateDirectory(importedRawDataFolder);
+
+            if (!string.IsNullOrWhiteSpace(rawDataFolderPath) && Directory.Exists(rawDataFolderPath))
+            {
+                foreach (var csvFile in Directory.GetFiles(rawDataFolderPath, "*.csv", SearchOption.TopDirectoryOnly))
+                {
+                    var destinationFile = Path.Combine(importedRawDataFolder, Path.GetFileName(csvFile));
+                    File.Copy(csvFile, destinationFile, overwrite: false);
+                }
+            }
+
             return true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
