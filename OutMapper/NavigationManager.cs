@@ -4,22 +4,16 @@ internal sealed class NavigationManager
 {
     private readonly ContentControl _contentControl;
     private readonly UIElement _settingsContent;
-    private readonly UIElement _projectsContent;
-    private readonly TextBlock _projectsStatusLabel;
-    private readonly ProjectDatasetsContent _projectDatasetsContent;
+    private readonly ProjectsPanel _projectsPanel;
 
     public NavigationManager(
         ContentControl contentControl,
         UIElement settingsContent,
-        UIElement projectsContent,
-        TextBlock projectsStatusLabel,
-        ProjectDatasetsContent projectDatasetsContent)
+        ProjectsPanel projectsPanel)
     {
         _contentControl = contentControl;
         _settingsContent = settingsContent;
-        _projectsContent = projectsContent;
-        _projectsStatusLabel = projectsStatusLabel;
-        _projectDatasetsContent = projectDatasetsContent;
+        _projectsPanel = projectsPanel;
     }
 
     public void ShowSettings()
@@ -29,11 +23,7 @@ internal sealed class NavigationManager
 
     public void ShowProjects()
     {
-        var selectedProject = ProjectFolderService.GetSelectedProjectName(out var error);
-        _projectsStatusLabel.Text = error ?? (selectedProject is null
-            ? "No project selected."
-            : $"Current project: {selectedProject}");
-        _projectDatasetsContent.Refresh(selectedProject);
-        _contentControl.Content = _projectsContent;
+        _projectsPanel.Refresh();
+        _contentControl.Content = _projectsPanel;
     }
 }

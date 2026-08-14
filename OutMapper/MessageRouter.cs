@@ -17,10 +17,10 @@ public static class MessageRouter
         switch (message)
         {
             case DatasetListResponse listResponse:
-                ProjectDatasetsContent.Current?.OnDatasetListResponseReceived(listResponse);
+                ProjectsPanel.Current?.OnDatasetListResponseReceived(listResponse);
                 break;
             case CreateDatasetResponse createResponse:
-                ProjectDatasetsContent.Current?.OnCreateDatasetResponseReceived(createResponse);
+                ProjectsPanel.Current?.OnCreateDatasetResponseReceived(createResponse);
                 break;
         }
     }
