@@ -156,7 +156,7 @@ internal sealed class ProjectsPanel : Grid
             var datasetButton = new Button { Content = datasetName };
             datasetButton.Click += (_, _) =>
             {
-                _datasetContent.SetDataset(datasetName);
+                _datasetContent.SetDataset(_currentProjectName!, datasetName);
                 _contentArea.Content = _datasetContent;
             };
             _navigationPanel.Children.Add(datasetButton);

@@ -10,7 +10,9 @@
       "mcp__uno__uno_platform_docs_fetch",
       "mcp__uno-app__uno_execute_tool",
       "Bash(python3 -c ' *)",
-      "WebFetch(domain:platform.uno)"
+      "WebFetch(domain:platform.uno)",
+      "Bash(dotnet run *)",
+      "Bash(echo \"launched with PID $!\")"
     ]
   }
 }

@@ -42,6 +42,8 @@ The complete physiological record for one patient. There is exactly one time ser
 
 Represented as a table with one timestamp column and one or more [Channel](#channel) columns. All channels in a time series share the same aligned time axis (i.e. one common set of timestamps, not independently-timed per channel) — typically one value per minute.
 
+Produced by parsing one raw CSV file per patient (see [Dataset](#dataset)). A `TimeSeries` object is guaranteed valid once it exists: timestamps are strictly increasing and unique, and there is at least one channel. A channel value may be missing; a timestamp may not.
+
 #### Channel
 
 A physiological variable that is measured, for example intracranial pressure or blood pressure. Within a [Time series](#time-series) table, each channel is one column of measured values, aligned to the shared timestamp column.
@@ -51,6 +53,8 @@ Also referred to elsewhere as "physiological variable" — `Channel` is the pref
 #### Dataset
 
 A collection of [Time series](#time-series) (i.e. covers multiple patients). A Dataset belongs to exactly one [Project](#project).
+
+A Dataset's raw data is a folder of CSV files, one per patient; parsing the Dataset converts each file into a Time series, reporting success or failure per file.
 
 #### Cohort
 

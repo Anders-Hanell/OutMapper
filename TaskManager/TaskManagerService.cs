@@ -84,6 +84,22 @@ internal static class TaskManagerService
         return Task.CompletedTask;
     }
 
+    internal static async Task HandleParseDatasetRequestAsync(ParseDatasetRequest message)
+    {
+        var response = await DatasetParsingService.ParseDatasetAsync(
+            _workspaceFolder, message.ProjectName, message.DatasetName, message.ParseParams);
+
+        GatewayToOutMapper.SendMessage(response);
+    }
+
+    internal static Task HandleParseResultRequestAsync(ParseResultRequest message)
+    {
+        var response = DatasetParsingService.ReadPersistedParseResult(_workspaceFolder, message.ProjectName, message.DatasetName);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
     private static bool CreateDataset(string? workspaceFolder, string? projectName, string datasetName, string? rawDataFolderPath)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||

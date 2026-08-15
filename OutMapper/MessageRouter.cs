@@ -22,6 +22,9 @@ public static class MessageRouter
             case CreateDatasetResponse createResponse:
                 ProjectsPanel.Current?.OnCreateDatasetResponseReceived(createResponse);
                 break;
+            case ParseResultResponse parseResultResponse:
+                ProjectDatasetContent.Current?.OnParseResultResponseReceived(parseResultResponse);
+                break;
         }
     }
 }

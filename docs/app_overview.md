@@ -25,7 +25,7 @@ A visualization showing associations between values in physiological time-series
 
 ### Physiological time-series data
 
-Measurements of physiological variables collected across time. The supported variables, sampling structure, and source formats are not yet documented.
+Measurements of physiological variables collected across time. Sourced today from per-patient CSV files with a configurable delimiter, decimal separator, and timestamp column/format — everything else in the file is a channel. Timestamps must be strictly increasing and unique; a value cell may be empty (missing), but any cell that isn't empty and doesn't parse fails the whole file. The supported variables and sampling structure are not yet further documented.
 
 ### Patient outcome
 
@@ -37,7 +37,7 @@ OutMapper currently includes concepts for workspaces, projects, and datasets. A 
 
 ## Research workflow
 
-The complete workflow for importing data, configuring an analysis, generating an outcome heatmap, and exporting results is not yet documented.
+Importing and parsing raw CSV data into a dataset's time series is implemented; see [Data and folder structure](#data-and-folder-structure) below. The rest of the workflow — configuring an analysis, generating an outcome heatmap, and exporting results — is not yet documented.
 
 ## Data and folder structure
 
@@ -47,10 +47,12 @@ Each project contains an `OutMapper_InternalFiles` directory (which may contain 
 
 Creating a dataset also creates a same-named folder inside `Datasets`, containing an `Imported raw data` subfolder. When the user selects a folder of raw data while creating the dataset, its `.csv` files are copied into `Imported raw data`.
 
+A dataset's raw CSV files can then be parsed: the user configures how to read them (delimiter, decimal separator, time column, timestamp format) and triggers a parse, which validates and converts each file into a [Time series](glossary.md#time-series) — one file per patient. The outcome (which files succeeded, and why any failed) is shown per file and kept so it can be reviewed again later without re-parsing. See [`architecture.md`](architecture.md) for the validation rules (`DataStructures`/`Algorithms` projects) and the resulting file layout (Persistence and workspace layout).
+
 Additional workspace contents, dataset formats, project metadata, and persistence rules are not yet fully documented.
 
 Future project calculations may continue in the background when the user selects another project. The execution and state model for that behavior has not yet been designed or implemented.
 
 ## Architecture
 
-The solution contains the `OutMapper`, `TaskManager`, `Messages`, and `OutMapper.Tests` projects. Their current responsibilities and communication boundaries are documented in [`architecture.md`](architecture.md).
+The solution contains the `OutMapper`, `TaskManager`, `Messages`, `DataStructures`, `Algorithms`, and `OutMapper.Tests` projects. Their current responsibilities and communication boundaries are documented in [`architecture.md`](architecture.md).

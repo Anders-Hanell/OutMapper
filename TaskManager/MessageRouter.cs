@@ -14,6 +14,8 @@ internal static class MessageRouter
             WorkspaceChanged workspaceChanged => TaskManagerService.HandleWorkspaceChangedAsync(workspaceChanged),
             DatasetListRequest datasetListRequest => TaskManagerService.HandleDatasetListRequestAsync(datasetListRequest),
             CreateDatasetRequest createDatasetRequest => TaskManagerService.HandleCreateDatasetRequestAsync(createDatasetRequest),
+            ParseDatasetRequest parseDatasetRequest => TaskManagerService.HandleParseDatasetRequestAsync(parseDatasetRequest),
+            ParseResultRequest parseResultRequest => TaskManagerService.HandleParseResultRequestAsync(parseResultRequest),
             _ => Task.CompletedTask
         };
     }
