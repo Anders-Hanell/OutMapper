@@ -18,12 +18,15 @@ internal sealed class ProjectsPanel : Grid
     private readonly ProjectCreateDatasetContent _createDatasetContent;
     private readonly ProjectCohortContent _cohortContent;
     private readonly ProjectCreateCohortContent _createCohortContent;
+    private readonly ProjectAnalysisContent _analysisContent;
+    private readonly ProjectCreateAnalysisContent _createAnalysisContent;
     private readonly Button _createDatasetButton;
     private readonly Button _createCohortButton;
-    private readonly Button _generatePdfButton;
+    private readonly Button _createAnalysisButton;
     private string? _currentProjectName;
     private ImmutableArray<string> _datasetNames = ImmutableArray<string>.Empty;
     private ImmutableArray<string> _cohortNames = ImmutableArray<string>.Empty;
+    private ImmutableArray<string> _analysisNames = ImmutableArray<string>.Empty;
 
     public ProjectsPanel()
     {
@@ -57,6 +60,8 @@ internal sealed class ProjectsPanel : Grid
         _createDatasetContent = new ProjectCreateDatasetContent();
         _cohortContent = new ProjectCohortContent();
         _createCohortContent = new ProjectCreateCohortContent();
+        _analysisContent = new ProjectAnalysisContent();
+        _createAnalysisContent = new ProjectCreateAnalysisContent();
 
         _contentArea = new ContentControl
         {
@@ -65,11 +70,11 @@ internal sealed class ProjectsPanel : Grid
 
         _createDatasetButton = new Button { Content = "Create dataset" };
         _createCohortButton = new Button { Content = "Create cohort" };
-        _generatePdfButton = new Button { Content = "Generate pdf" };
+        _createAnalysisButton = new Button { Content = "Create analysis" };
 
         _createDatasetButton.Click += (_, _) => _contentArea.Content = _createDatasetContent;
         _createCohortButton.Click += (_, _) => _contentArea.Content = _createCohortContent;
-        _generatePdfButton.Click += (_, _) => GraphPdfService.GeneratePdf();
+        _createAnalysisButton.Click += (_, _) => _contentArea.Content = _createAnalysisContent;
 
         _navigationPanel = new StackPanel
         {
@@ -110,9 +115,11 @@ internal sealed class ProjectsPanel : Grid
 
         _createDatasetContent.SetProject(selectedProject);
         _createCohortContent.SetProject(selectedProject);
+        _createAnalysisContent.SetProject(selectedProject);
         _contentArea.Content = _placeholderContent;
         _datasetNames = ImmutableArray<string>.Empty;
         _cohortNames = ImmutableArray<string>.Empty;
+        _analysisNames = ImmutableArray<string>.Empty;
 
         if (selectedProject is null)
         {
@@ -121,10 +128,11 @@ internal sealed class ProjectsPanel : Grid
             return;
         }
 
-        _placeholderLabel.Text = "Loading datasets and cohorts...";
+        _placeholderLabel.Text = "Loading datasets, cohorts, and analyses...";
         RebuildNavigationButtons();
         MessageRouter.SendMessage(new DatasetListRequest(selectedProject));
         MessageRouter.SendMessage(new CohortListRequest(selectedProject));
+        MessageRouter.SendMessage(new AnalysisListRequest(selectedProject));
     }
 
     internal void OnDatasetListResponseReceived(DatasetListResponse response)
@@ -187,6 +195,34 @@ internal sealed class ProjectsPanel : Grid
         }
     }
 
+    internal void OnAnalysisListResponseReceived(AnalysisListResponse response)
+    {
+        // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
+        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _analysisNames = response.AnalysisNames;
+        RebuildNavigationButtons();
+    }
+
+    internal void OnCreateAnalysisResponseReceived(CreateAnalysisResponse response)
+    {
+        // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
+        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _createAnalysisContent.OnCreateAnalysisResponseReceived(response);
+
+        if (response.Success)
+        {
+            MessageRouter.SendMessage(new AnalysisListRequest(response.ProjectName!));
+        }
+    }
+
     private void RebuildNavigationButtons()
     {
         _navigationPanel.Children.Clear();
@@ -219,15 +255,19 @@ internal sealed class ProjectsPanel : Grid
             _navigationPanel.Children.Add(cohortButton);
         }
 
-        _navigationPanel.Children.Add(new Border()
-        {
-            Height = 10,
-            Width = 150,
-            CornerRadius = 5,
-            Background = new SolidColorBrush(Microsoft.UI.Colors.DarkRed)
-        });
+        _navigationPanel.Children.Add(new TextBlock { Text = "Analyses", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
+        _navigationPanel.Children.Add(_createAnalysisButton);
 
-        _navigationPanel.Children.Add(_generatePdfButton);
+        foreach (var analysisName in _analysisNames)
+        {
+            var analysisButton = new Button { Content = analysisName };
+            analysisButton.Click += (_, _) =>
+            {
+                _analysisContent.SetAnalysis(_currentProjectName!, analysisName);
+                _contentArea.Content = _analysisContent;
+            };
+            _navigationPanel.Children.Add(analysisButton);
+        }
     }
 
     private static Brush? GetThemeBrush(string resourceKey)

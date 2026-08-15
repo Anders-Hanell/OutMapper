@@ -12,7 +12,8 @@
       "Bash(python3 -c ' *)",
       "WebFetch(domain:platform.uno)",
       "Bash(dotnet run *)",
-      "Bash(echo \"launched with PID $!\")"
+      "Bash(echo \"launched with PID $!\")",
+      "Bash(dotnet test *)"
     ]
   }
 }

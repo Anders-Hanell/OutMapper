@@ -74,6 +74,20 @@ At link time, this patient-level linkage must be unambiguous: a patient in the C
 
 Created by selecting a [Cohort](#cohort) and one of the graph-creation methods (for example "One-variable" or "Two-variable"). Each method can produce both an [Outcome heatmap](#outcome-heatmap) and a [Density heatmap](#density-heatmap), and usually other graph types as well — the pairing is not fixed per Analysis.
 
+At creation, the user only names the Analysis; the method, Cohort, and other settings are chosen afterward, in the Analysis's own settings panel. Currently only the [Two-variable](#two-variable) method is implemented, and it only produces an Outcome heatmap.
+
 The methods themselves ("One-variable", "Two-variable", etc.) and the full set of graph types each can produce are not yet documented in detail.
 
 The creation of a [Graph](#graph) is based on one Cohort.
+
+#### Two-variable
+
+The only [Analysis](#analysis) method implemented so far. The user picks a Cohort and two [Channel](#channel)s (by name) plus a [Bin](#bin) size for each. Each channel's bin edges span its observed value range (across the Cohort's matched patients) at that bin size, forming a 2D grid — one axis per channel.
+
+For each grid cell, the association value is the Spearman correlation, across the Cohort's patients, between "percent of that patient's valid monitoring time spent in this cell" and that patient's outcome. Values are mapped to color for the Outcome heatmap using the Jet color scale.
+
+This first implementation assumes all available data is included (no exclusion thresholds beyond missing values or unmatched/ambiguous patients) and applies no smoothing.
+
+#### Bin
+
+One interval of a [Channel](#channel)'s value range, used as an axis unit in an [Analysis](#analysis) grid. A channel's bins all share the same size (configured by the user); their edges span the channel's observed value range.

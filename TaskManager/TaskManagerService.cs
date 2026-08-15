@@ -138,6 +138,42 @@ internal static class TaskManagerService
         return Task.CompletedTask;
     }
 
+    internal static Task HandleAnalysisListRequestAsync(AnalysisListRequest message)
+    {
+        var analysisNames = LocateAnalyses(_workspaceFolder, message.ProjectName);
+
+        var response = new AnalysisListResponse(message.ProjectName, analysisNames);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleCreateAnalysisRequestAsync(CreateAnalysisRequest message)
+    {
+        var createdAnalysis = CreateAnalysis(_workspaceFolder, message.ProjectName, message.AnalysisName);
+
+        var response = new CreateAnalysisResponse(message.AnalysisName, message.ProjectName, createdAnalysis);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static async Task HandleGenerateAnalysisGraphRequestAsync(GenerateAnalysisGraphRequest message)
+    {
+        var response = await AnalysisService.GenerateGraphAsync(
+            _workspaceFolder, message.ProjectName, message.AnalysisName, message.Settings);
+
+        GatewayToOutMapper.SendMessage(response);
+    }
+
+    internal static Task HandleAnalysisResultRequestAsync(AnalysisResultRequest message)
+    {
+        var response = AnalysisService.ReadPersistedResult(_workspaceFolder, message.ProjectName, message.AnalysisName);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
     private static bool CreateDataset(string? workspaceFolder, string? projectName, string datasetName, string? rawDataFolderPath)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
@@ -286,6 +322,71 @@ internal static class TaskManagerService
         }
 
         return cohortFiles
+            .Select(file => Path.GetFileNameWithoutExtension(file)!)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToImmutableArray();
+    }
+
+    private static bool CreateAnalysis(string? workspaceFolder, string? projectName, string analysisName)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
+            string.IsNullOrWhiteSpace(analysisName))
+        {
+            return false;
+        }
+
+        var projectFolder = Path.Combine(workspaceFolder, "Projects", projectName);
+        if (!Directory.Exists(projectFolder))
+        {
+            return false;
+        }
+
+        try
+        {
+            var analysesFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Analyses");
+            Directory.CreateDirectory(analysesFolder);
+
+            var analysisFile = Path.Combine(analysesFolder, analysisName + ".oman");
+            if (File.Exists(analysisFile))
+            {
+                return false;
+            }
+
+            using (File.Create(analysisFile))
+            {
+            }
+
+            Directory.CreateDirectory(Path.Combine(analysesFolder, analysisName));
+
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static ImmutableArray<string> LocateAnalyses(string? workspaceFolder, string? projectName)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+            string.IsNullOrWhiteSpace(projectName))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var analysesFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Analyses");
+        if (!Directory.Exists(analysesFolder))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var analysisFiles = Directory.GetFiles(analysesFolder, "*.oman", SearchOption.TopDirectoryOnly);
+        if (analysisFiles.Length == 0)
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        return analysisFiles
             .Select(file => Path.GetFileNameWithoutExtension(file)!)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .ToImmutableArray();

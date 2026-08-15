@@ -20,6 +20,10 @@ internal static class MessageRouter
             CreateCohortRequest createCohortRequest => TaskManagerService.HandleCreateCohortRequestAsync(createCohortRequest),
             ParseCohortRequest parseCohortRequest => TaskManagerService.HandleParseCohortRequestAsync(parseCohortRequest),
             CohortParseResultRequest cohortParseResultRequest => TaskManagerService.HandleCohortParseResultRequestAsync(cohortParseResultRequest),
+            AnalysisListRequest analysisListRequest => TaskManagerService.HandleAnalysisListRequestAsync(analysisListRequest),
+            CreateAnalysisRequest createAnalysisRequest => TaskManagerService.HandleCreateAnalysisRequestAsync(createAnalysisRequest),
+            GenerateAnalysisGraphRequest generateAnalysisGraphRequest => TaskManagerService.HandleGenerateAnalysisGraphRequestAsync(generateAnalysisGraphRequest),
+            AnalysisResultRequest analysisResultRequest => TaskManagerService.HandleAnalysisResultRequestAsync(analysisResultRequest),
             _ => Task.CompletedTask
         };
     }

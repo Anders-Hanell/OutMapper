@@ -28,12 +28,25 @@ public static class MessageRouter
                 break;
             case CohortListResponse cohortListResponse:
                 ProjectsPanel.Current?.OnCohortListResponseReceived(cohortListResponse);
+                ProjectAnalysisSettingsContent.Current?.OnCohortListResponseReceived(cohortListResponse);
                 break;
             case CreateCohortResponse createCohortResponse:
                 ProjectsPanel.Current?.OnCreateCohortResponseReceived(createCohortResponse);
                 break;
             case CohortParseResultResponse cohortParseResultResponse:
                 ProjectCohortContent.Current?.OnCohortParseResultResponseReceived(cohortParseResultResponse);
+                break;
+            case AnalysisListResponse analysisListResponse:
+                ProjectsPanel.Current?.OnAnalysisListResponseReceived(analysisListResponse);
+                break;
+            case CreateAnalysisResponse createAnalysisResponse:
+                ProjectsPanel.Current?.OnCreateAnalysisResponseReceived(createAnalysisResponse);
+                break;
+            case GenerateAnalysisGraphResponse generateAnalysisGraphResponse:
+                ProjectAnalysisContent.Current?.OnGenerateAnalysisGraphResponseReceived(generateAnalysisGraphResponse);
+                break;
+            case AnalysisResultResponse analysisResultResponse:
+                ProjectAnalysisContent.Current?.OnAnalysisResultResponseReceived(analysisResultResponse);
                 break;
         }
     }
