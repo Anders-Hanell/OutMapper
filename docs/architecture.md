@@ -18,6 +18,7 @@ The Uno Platform application and presentation layer. It currently owns:
 - Selection and local persistence of the current workspace path.
 - Project folder discovery and creation.
 - Dataset user interactions, scoped to the currently selected project.
+- Cohort user interactions, scoped to the currently selected project, including a basic dataset-linkage picker at creation time (the picked names are recorded but not yet matched against dataset patients).
 - PDF generation currently implemented on the desktop target.
 - The UI-side adapter to the task messaging system, via `OutMapper.GatewayToTaskManager`.
 
@@ -32,26 +33,30 @@ A .NET class library that processes background requests. It currently owns:
 - Dataset discovery under the current project's `Datasets` directory (`Projects/<project-name>/OutMapper_InternalFiles/Datasets`).
 - Creation of `.omds` dataset files and same-named dataset folders (each containing an `Imported raw data` subfolder) within the owning project's `Datasets` directory, optionally copying `.csv` files from a user-selected raw data folder into `Imported raw data`.
 - Parsing every `.csv` file in a dataset's `Imported raw data` folder into a `TimeSeries` via `Algorithms.Csv.ParseBytes`, persisting each successfully parsed series and a per-dataset parse-result summary (see [Persistence and workspace layout](#persistence-and-workspace-layout)), and re-reading that persisted summary on request without reparsing.
-- Emission of dataset and parse-result responses.
+- Cohort discovery under the current project's `Cohorts` directory (`Projects/<project-name>/OutMapper_InternalFiles/Cohorts`).
+- Creation of `.omch` cohort files and same-named cohort folders (each containing an `Imported raw data` subfolder) within the owning project's `Cohorts` directory, copying the user-selected `.csv` file into `Imported raw data` and recording the selected linked-dataset names.
+- Parsing a cohort's single `.csv` file into a `Cohort` via `Algorithms.CohortCsv.ParseBytes`, persisting the parsed cohort and a parse-result summary, and re-reading that persisted summary on request without reparsing.
+- Emission of dataset, cohort, and parse-result responses.
 
-`TaskManager` references `Algorithms` and `Messages`, and does not reference the UI project. `DatasetParsingService` (internal) holds the CSV-parsing orchestration logic; `TaskManagerService`'s parse-related handlers delegate to it, mirroring the existing thin-handler shape used for dataset creation.
+`TaskManager` references `Algorithms` and `Messages`, and does not reference the UI project. `DatasetParsingService` and `CohortParsingService` (both internal) hold the CSV-parsing orchestration logic for their respective entities; `TaskManagerService`'s parse-related handlers delegate to them, mirroring the existing thin-handler shape used for dataset creation.
 
-`TaskManagerService`, `TaskManager.MessageRouter`, and `DatasetParsingService` are all `internal`; `TaskManager.GatewayToOutMapper` is the only public entry point, so the message-only boundary with `OutMapper` is enforced by the compiler rather than by convention alone.
+`TaskManagerService`, `TaskManager.MessageRouter`, `DatasetParsingService`, and `CohortParsingService` are all `internal`; `TaskManager.GatewayToOutMapper` is the only public entry point, so the message-only boundary with `OutMapper` is enforced by the compiler rather than by convention alone.
 
 ### `DataStructures`
 
 A .NET class library with no project references of its own — the dependency-free base of the solution. It owns:
 
 - `Result<T>`: an abstract record with `Success<T>`/`Failure<T>` subtypes, used as the errors-as-values return type for any operation in `DataStructures`/`Algorithms` that can fail.
-- `TimeSeries` and `CsvParseParams`: value types that follow a "guaranteed valid by construction" pattern — a private constructor plus a static `Create(...)` (and, for `TimeSeries`, `FromByteArray`) that performs all validation and returns `Result<T>`. Once an instance exists, callers can rely on it being valid without re-checking; there is no other way to construct one. `TimeSeries.FromByteArray` re-runs `Create` on the deserialized data for the same reason, so the guarantee also holds for data loaded back from disk.
+- `TimeSeries`, `CsvParseParams`, `Cohort`, and `CohortParseParams`: value types that follow a "guaranteed valid by construction" pattern — a private constructor plus a static `Create(...)` (and, for `TimeSeries`/`Cohort`, `FromByteArray`) that performs all validation and returns `Result<T>`. Once an instance exists, callers can rely on it being valid without re-checking; there is no other way to construct one. `TimeSeries.FromByteArray`/`Cohort.FromByteArray` re-run `Create` on the deserialized data for the same reason, so the guarantee also holds for data loaded back from disk. `Cohort` holds one patient ID and one outcome value per patient (`ImmutableArray<string> PatientIds`/`Outcomes`), rejecting empty or duplicate patient IDs and empty outcomes.
 
 ### `Algorithms`
 
 A .NET class library referencing only `DataStructures`, kept dependency-free and side-effect-free (no file or network I/O) so it can be unit tested and reasoned about as pure functions. It owns:
 
 - `Csv.ParseBytes(bytes, parseParams)`: parses raw CSV bytes into a `Result<TimeSeries>` given a `CsvParseParams`. Callers (currently only `TaskManager`) are responsible for reading the file bytes and, on success, persisting the resulting `TimeSeries`.
+- `CohortCsv.ParseBytes(bytes, parseParams)`: parses raw CSV bytes into a `Result<Cohort>` given a `CohortParseParams`, locating the patient-ID and outcome columns by header name (rather than by fixed position) so column order in the source file doesn't matter.
 
-`OutMapper` does not reference `Algorithms` or `DataStructures` directly; see [Messages](#messages) for how `CsvParseParams` still reaches the UI.
+`OutMapper` does not reference `Algorithms` or `DataStructures` directly; see [Messages](#messages) for how `CsvParseParams`/`CohortParseParams` still reach the UI.
 
 ### `Messages`
 
@@ -66,6 +71,10 @@ The current contracts cover:
 - Dataset creation requests (`CreateDatasetRequest`) and responses (`CreateDatasetResponse`).
 - Dataset parse requests (`ParseDatasetRequest`, carrying a `CsvParseParams`) and parse-result requests (`ParseResultRequest`).
 - Parse-result responses (`ParseResultResponse`), shared by both request types above — it answers "what happened the last time this dataset was parsed," whether that was moments ago or is being read back from a previous session. Carries an `ImmutableArray<CsvFileParseOutcome>`, one entry per CSV file (`FileName`, `Success`, `ErrorMessage`).
+- Cohort list requests (`CohortListRequest`) and responses (`CohortListResponse`).
+- Cohort creation requests (`CreateCohortRequest`, also carrying the `ImmutableArray<string>` of linked dataset names picked at creation time) and responses (`CreateCohortResponse`).
+- Cohort parse requests (`ParseCohortRequest`, carrying a `CohortParseParams`) and parse-result requests (`CohortParseResultRequest`).
+- Cohort parse-result responses (`CohortParseResultResponse`), shared by both cohort request types above, mirroring `ParseResultResponse` but for a single outcome (`Success`, `ErrorMessage`, `PatientCount`) since a cohort has exactly one source CSV rather than many.
 
 Message contract type names do not carry a `Msg` suffix.
 
@@ -79,7 +88,7 @@ The NUnit test project. It references `OutMapper` and currently contains only th
 
 In debug builds, Uno Platform Studio support is enabled through `UseStudio()`.
 
-`MainPage` currently composes the primary navigation and content entirely in C#. The top-level areas are Settings and Projects. Dataset management is not a top-level area; it is nested inside the Projects tab, scoped to the currently selected project. Settings contains its own navigation for Usage, Workspace, Current Projects, Select Project, and Create Project. A selected dataset has its own further-nested navigation, for Parse and Result, following the same sidebar-plus-content-area shape as Settings.
+`MainPage` currently composes the primary navigation and content entirely in C#. The top-level areas are Settings and Projects. Dataset and cohort management are not top-level areas; both are nested inside the Projects tab, scoped to the currently selected project. Settings contains its own navigation for Usage, Workspace, Current Projects, Select Project, and Create Project. A selected dataset or cohort has its own further-nested navigation, for Parse and Result, following the same sidebar-plus-content-area shape as Settings.
 
 Although the project enables the Uno MVUX feature, the currently implemented screens use programmatic UI construction and event handlers rather than MVUX models.
 
@@ -99,9 +108,9 @@ Return, `TaskManager` → `OutMapper` (for messages that produce a response):
 1. The `TaskManagerService` handler calls `TaskManager.GatewayToOutMapper.SendMessage` with the response.
 2. `TaskManager` has no project reference to `OutMapper`, so `GatewayToOutMapper` forwards the response to a registered `TaskManager.IGatewayReceiver` — the callback that `OutMapper.GatewayToTaskManager` registers with it via `GatewayToTaskManager.Initialize()`, called once from `App.OnLaunched` on the UI thread.
 3. That callback marshals onto the UI thread with `DispatcherQueue.TryEnqueue` before doing anything else — the thread switch back to the UI thread.
-4. Once on the UI thread, `OutMapper.MessageRouter.Route` casts the response to its concrete subtype and calls the matching handler directly on the live control instance (for example `ProjectsPanel.Current` for `DatasetListResponse`/`CreateDatasetResponse`, or `ProjectDatasetContent.Current` for `ParseResultResponse`).
+4. Once on the UI thread, `OutMapper.MessageRouter.Route` casts the response to its concrete subtype and calls the matching handler directly on the live control instance (for example `ProjectsPanel.Current` for `DatasetListResponse`/`CreateDatasetResponse`/`CohortListResponse`/`CreateCohortResponse`, or `ProjectDatasetContent.Current`/`ProjectCohortContent.Current` for `ParseResultResponse`/`CohortParseResultResponse`).
 
-Neither `MessageRouter` uses events; once the concrete message subtype is known, dispatch in both directions is a direct function call. Each response consumer exposes its live instance to route to as a static `Current` reference, since exactly one instance exists for the app's lifetime. `ProjectDatasetContent` forwards a received `ParseResultResponse` to both of its children (`ProjectDatasetParseContent` and `ProjectDatasetResultContent`), after checking the response's project/dataset name against the currently displayed dataset — because `ProjectDatasetContent` is a single instance reused across every dataset selection, this guard prevents a response for a previously viewed dataset from overwriting the current view.
+Neither `MessageRouter` uses events; once the concrete message subtype is known, dispatch in both directions is a direct function call. Each response consumer exposes its live instance to route to as a static `Current` reference, since exactly one instance exists for the app's lifetime. `ProjectDatasetContent`/`ProjectCohortContent` forward a received `ParseResultResponse`/`CohortParseResultResponse` to both of their children (the respective Parse and Result content controls), after checking the response's project/dataset (or project/cohort) name against what's currently displayed — because each is a single instance reused across every selection, this guard prevents a response for a previously viewed dataset or cohort from overwriting the current view. `DatasetListResponse` is additionally forwarded to `ProjectCreateCohortContent.Current`, which uses it to populate its dataset-linkage checkbox list — one response consumed by two unrelated controls.
 
 This is not currently an external process, network protocol, or durable queue. Message state is held only for the lifetime of the application process.
 
@@ -158,9 +167,9 @@ Cancellation and progress control require further design. A cancellation message
 
 On startup and whenever the user selects a workspace, a `WorkspaceChanged` message synchronizes that path to the static state held by `TaskManagerService`.
 
-Some UI-side project operations read the persisted workspace path directly, while dataset operations send `null` for the workspace folder in their request messages and rely on `TaskManagerService` resolving its own synchronized state. The workspace therefore currently has two representations that must remain synchronized.
+Some UI-side project operations read the persisted workspace path directly, while dataset and cohort operations carry no workspace folder in their request messages at all and rely entirely on `TaskManagerService` resolving its own synchronized state. The workspace therefore currently has two representations that must remain synchronized.
 
-Dataset requests additionally carry the selected project's name explicitly on every message; unlike the workspace path, `TaskManagerService` does not hold a synchronized "current project" field, so the UI is solely responsible for supplying a valid project name each time.
+Dataset and cohort requests additionally carry the selected project's name explicitly on every message; unlike the workspace path, `TaskManagerService` does not hold a synchronized "current project" field, so the UI is solely responsible for supplying a valid project name each time.
 
 ### Project selection
 
@@ -193,15 +202,26 @@ The selected workspace is an ordinary filesystem directory.
         │           ├── Parsed data/
         │           │   └── <csv-basename>.json
         │           └── parse-result.json
+        ├── Cohorts/
+        │   ├── <cohort-name>.omch
+        │   └── <cohort-name>/
+        │       ├── Imported raw data/
+        │       │   └── <copied .csv file>
+        │       ├── Parsed data/
+        │       │   └── cohort.json
+        │       ├── parse-result.json
+        │       └── linked-datasets.json
         └── OutMapper_ProjectOutput/
             └── Graph.pdf
 ```
 
 - Each immediate subdirectory of `Projects` is treated as a project.
 - Creating a project creates its directory, then its `OutMapper_InternalFiles` and `OutMapper_ProjectOutput` subdirectories, after validating the name and checking for an existing directory.
-- `OutMapper_InternalFiles` holds files the app manages internally, such as `Datasets`. `OutMapper_ProjectOutput` holds files generated for the user, such as the exported PDF.
+- `OutMapper_InternalFiles` holds files the app manages internally, such as `Datasets` and `Cohorts`. `OutMapper_ProjectOutput` holds files generated for the user, such as the exported PDF.
 - Datasets are currently represented by an empty `.omds` file and a same-named folder, both created by `TaskManagerService` inside their owning project's `OutMapper_InternalFiles/Datasets` directory; a dataset cannot exist without an existing project. The dataset folder contains an `Imported raw data` subfolder, into which `.csv` files are copied from the raw data folder the user selected during dataset creation, if any.
 - Parsing a dataset (`DatasetParsingService.ParseDatasetAsync`) reads every `.csv` file in `Imported raw data`, and for each one that parses successfully, writes the resulting `TimeSeries.ToByteArray()` to a same-named `.json` file in a sibling `Parsed data` folder. Whether or not every file succeeded, a `parse-result.json` summary (parse timestamp, counts, and a per-file success/error outcome) is written directly in the dataset folder, overwriting any previous run's summary — parsing is idempotent and re-runnable. `ParseResultRequest` reads this file back without reparsing, which is how the Result panel can show the outcome of a previous session's parse.
+- Cohorts follow the same shape as Datasets, one level down: an empty `.omch` file and a same-named folder inside `OutMapper_InternalFiles/Cohorts`, created by `TaskManagerService`. The cohort folder contains an `Imported raw data` subfolder holding the single `.csv` file copied from the path the user picked during cohort creation, and a `linked-datasets.json` file recording the dataset names selected in the linkage picker at creation time (not yet used for any patient-matching logic).
+- Parsing a cohort (`CohortParsingService.ParseCohortAsync`) reads the one `.csv` file in `Imported raw data` (failing with a clear message if zero or more than one is found), and on success writes the resulting `Cohort.ToByteArray()` to `Parsed data/cohort.json`. A `parse-result.json` summary (parse timestamp, success/error, and patient count) is written directly in the cohort folder either way, overwriting any previous run's summary, and `CohortParseResultRequest` reads it back without reparsing — mirroring the dataset parse-result flow but for a single outcome instead of a per-file array.
 - The current PDF prototype writes `Graph.pdf` into the selected project's `OutMapper_ProjectOutput` directory.
 
 No project metadata format, dataset schema, migration strategy, or transactional persistence layer is currently implemented.
@@ -217,8 +237,9 @@ The specialized content controls currently include:
 - `SettingsSelectProjectContent` for selecting the current project.
 - `SettingsCreateProjectContent` for project creation.
 - `SettingsMultitaskingContent` for choosing how many cores calculations may use.
-- `ProjectsPanel` for dataset listing within the Projects tab, scoped to the selected project; `ProjectCreateDatasetContent` for dataset creation.
+- `ProjectsPanel` for dataset and cohort listing within the Projects tab, scoped to the selected project; `ProjectCreateDatasetContent` for dataset creation; `ProjectCreateCohortContent` for cohort creation (including a checkbox picker, populated via `DatasetListRequest`, for the dataset(s) to link the cohort to).
 - `ProjectDatasetContent` for a selected dataset, hosting its own nested Parse/Result navigation; `ProjectDatasetParseContent` for configuring and triggering a CSV parse (`CsvParseParams`); `ProjectDatasetResultContent` for displaying the last parse's per-file outcome.
+- `ProjectCohortContent` for a selected cohort, hosting the same nested Parse/Result navigation shape; `ProjectCohortParseContent` for configuring and triggering a CSV parse (`CohortParseParams`: delimiter, patient-ID column header, outcome column header); `ProjectCohortResultContent` for displaying the last parse's single outcome (success/patient count, or error).
 
 `ProjectFolderService` contains the shared filesystem rules used by the two project-related Settings panels.
 
@@ -251,8 +272,9 @@ Important filesystem validation, messaging, and state-synchronization behavior s
 - Several services and routers are static, coupling state to the application process lifetime.
 - Project filesystem operations currently execute directly from the UI project instead of through `TaskManager`.
 - TaskManager has no intra-message parallel processing yet; CSV parsing (the first implemented candidate stage) runs one file at a time, and other heatmap stages have no implementation for bounded multiple-core work at all. `SettingsMultitaskingContent.GetMaxDegreeOfParallelism()` exists to bound that future work but is not yet called from anywhere.
-- Cancellation and progress control for long-running sequential messages are not yet designed. A dataset parse currently runs to completion (or first unexpected filesystem failure) with no way to cancel it mid-run.
+- Cancellation and progress control for long-running sequential messages are not yet designed. A dataset or cohort parse currently runs to completion (or first unexpected filesystem failure) with no way to cancel it mid-run.
 - UI composition, event handling, and navigation are concentrated in code rather than separated into view and state layers.
 - Automated test coverage is not yet established.
+- Cohort-to-dataset linkage (picked at cohort creation time, persisted in `linked-datasets.json`) is recorded but not yet used for any patient-matching or validation logic — see [Cohort](glossary.md#cohort) in the glossary for the intended behavior.
 
 These observations describe the current implementation; changing them requires an explicit product or architectural decision.

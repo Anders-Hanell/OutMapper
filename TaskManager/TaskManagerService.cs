@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Channels;
 using Messages;
 
@@ -100,6 +101,43 @@ internal static class TaskManagerService
         return Task.CompletedTask;
     }
 
+    internal static Task HandleCohortListRequestAsync(CohortListRequest message)
+    {
+        var cohortNames = LocateCohorts(_workspaceFolder, message.ProjectName);
+
+        var response = new CohortListResponse(message.ProjectName, cohortNames);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleCreateCohortRequestAsync(CreateCohortRequest message)
+    {
+        var createdCohort = CreateCohort(
+            _workspaceFolder, message.ProjectName, message.CohortName, message.RawCsvFilePath, message.LinkedDatasetNames);
+
+        var response = new CreateCohortResponse(message.CohortName, message.ProjectName, createdCohort);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static async Task HandleParseCohortRequestAsync(ParseCohortRequest message)
+    {
+        var response = await CohortParsingService.ParseCohortAsync(
+            _workspaceFolder, message.ProjectName, message.CohortName, message.ParseParams);
+
+        GatewayToOutMapper.SendMessage(response);
+    }
+
+    internal static Task HandleCohortParseResultRequestAsync(CohortParseResultRequest message)
+    {
+        var response = CohortParsingService.ReadPersistedParseResult(_workspaceFolder, message.ProjectName, message.CohortName);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
     private static bool CreateDataset(string? workspaceFolder, string? projectName, string datasetName, string? rawDataFolderPath)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
@@ -171,6 +209,83 @@ internal static class TaskManagerService
         }
 
         return datasetFiles
+            .Select(file => Path.GetFileNameWithoutExtension(file)!)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToImmutableArray();
+    }
+
+    private static bool CreateCohort(
+        string? workspaceFolder, string? projectName, string cohortName, string? rawCsvFilePath, ImmutableArray<string> linkedDatasetNames)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
+            string.IsNullOrWhiteSpace(cohortName))
+        {
+            return false;
+        }
+
+        var projectFolder = Path.Combine(workspaceFolder, "Projects", projectName);
+        if (!Directory.Exists(projectFolder))
+        {
+            return false;
+        }
+
+        try
+        {
+            var cohortsFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Cohorts");
+            Directory.CreateDirectory(cohortsFolder);
+
+            var cohortFile = Path.Combine(cohortsFolder, cohortName + ".omch");
+            if (File.Exists(cohortFile))
+            {
+                return false;
+            }
+
+            using (File.Create(cohortFile))
+            {
+            }
+
+            var cohortFolder = Path.Combine(cohortsFolder, cohortName);
+            var importedRawDataFolder = Path.Combine(cohortFolder, "Imported raw data");
+            Directory.CreateDirectory(importedRawDataFolder);
+
+            if (!string.IsNullOrWhiteSpace(rawCsvFilePath) && File.Exists(rawCsvFilePath))
+            {
+                var destinationFile = Path.Combine(importedRawDataFolder, Path.GetFileName(rawCsvFilePath));
+                File.Copy(rawCsvFilePath, destinationFile, overwrite: false);
+            }
+
+            var linkedDatasetsFile = Path.Combine(cohortFolder, "linked-datasets.json");
+            File.WriteAllBytes(linkedDatasetsFile, JsonSerializer.SerializeToUtf8Bytes(linkedDatasetNames.ToArray()));
+
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static ImmutableArray<string> LocateCohorts(string? workspaceFolder, string? projectName)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+            string.IsNullOrWhiteSpace(projectName))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var cohortsFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Cohorts");
+        if (!Directory.Exists(cohortsFolder))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var cohortFiles = Directory.GetFiles(cohortsFolder, "*.omch", SearchOption.TopDirectoryOnly);
+        if (cohortFiles.Length == 0)
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        return cohortFiles
             .Select(file => Path.GetFileNameWithoutExtension(file)!)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .ToImmutableArray();

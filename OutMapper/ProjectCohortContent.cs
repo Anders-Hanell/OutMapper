@@ -1,0 +1,102 @@
+using Messages;
+using Microsoft.UI.Text;
+
+namespace OutMapper;
+
+public sealed class ProjectCohortContent : Border
+{
+    internal static ProjectCohortContent? Current { get; private set; }
+
+    private readonly TextBlock _nameLabel;
+    private readonly ContentControl _innerContentArea;
+    private readonly ProjectCohortParseContent _parseContent;
+    private readonly ProjectCohortResultContent _resultContent;
+    private string? _currentProjectName;
+    private string? _currentCohortName;
+
+    public ProjectCohortContent()
+    {
+        Padding = new Thickness(24);
+        Background = GetThemeBrush("SystemControlBackgroundChromeMediumLowBrush");
+        CornerRadius = new CornerRadius(12);
+
+        _nameLabel = new TextBlock
+        {
+            FontSize = 20,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 16)
+        };
+
+        _parseContent = new ProjectCohortParseContent();
+        _resultContent = new ProjectCohortResultContent();
+
+        _innerContentArea = new ContentControl
+        {
+            Content = _parseContent
+        };
+
+        var innerSidebar = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            Spacing = 8,
+            Padding = new Thickness(8)
+        };
+
+        var parseButton = new Button { Content = "Parse" };
+        var resultButton = new Button { Content = "Result" };
+
+        parseButton.Click += (_, _) => _innerContentArea.Content = _parseContent;
+        resultButton.Click += (_, _) =>
+        {
+            _resultContent.Refresh();
+            _innerContentArea.Content = _resultContent;
+        };
+
+        innerSidebar.Children.Add(parseButton);
+        innerSidebar.Children.Add(resultButton);
+
+        var innerGrid = new Grid();
+        innerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        innerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetColumn(_innerContentArea, 1);
+        innerGrid.Children.Add(innerSidebar);
+        innerGrid.Children.Add(_innerContentArea);
+
+        Child = new StackPanel
+        {
+            Children = { _nameLabel, innerGrid }
+        };
+
+        Current = this;
+    }
+
+    public void SetCohort(string projectName, string cohortName)
+    {
+        _currentProjectName = projectName;
+        _currentCohortName = cohortName;
+        _nameLabel.Text = cohortName;
+        _parseContent.SetCohort(projectName, cohortName);
+        _resultContent.SetCohort(projectName, cohortName);
+        _innerContentArea.Content = _parseContent;
+    }
+
+    internal void OnCohortParseResultResponseReceived(CohortParseResultResponse response)
+    {
+        // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
+        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal) ||
+            !string.Equals(response.CohortName, _currentCohortName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _parseContent.OnCohortParseResultResponseReceived(response);
+        _resultContent.OnCohortParseResultResponseReceived(response);
+    }
+
+    private static Brush? GetThemeBrush(string resourceKey)
+    {
+        return Application.Current.Resources.TryGetValue(resourceKey, out var resource)
+            ? resource as Brush
+            : null;
+    }
+}

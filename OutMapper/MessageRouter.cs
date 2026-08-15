@@ -18,12 +18,22 @@ public static class MessageRouter
         {
             case DatasetListResponse listResponse:
                 ProjectsPanel.Current?.OnDatasetListResponseReceived(listResponse);
+                ProjectCreateCohortContent.Current?.OnDatasetListResponseReceived(listResponse);
                 break;
             case CreateDatasetResponse createResponse:
                 ProjectsPanel.Current?.OnCreateDatasetResponseReceived(createResponse);
                 break;
             case ParseResultResponse parseResultResponse:
                 ProjectDatasetContent.Current?.OnParseResultResponseReceived(parseResultResponse);
+                break;
+            case CohortListResponse cohortListResponse:
+                ProjectsPanel.Current?.OnCohortListResponseReceived(cohortListResponse);
+                break;
+            case CreateCohortResponse createCohortResponse:
+                ProjectsPanel.Current?.OnCreateCohortResponseReceived(createCohortResponse);
+                break;
+            case CohortParseResultResponse cohortParseResultResponse:
+                ProjectCohortContent.Current?.OnCohortParseResultResponseReceived(cohortParseResultResponse);
                 break;
         }
     }

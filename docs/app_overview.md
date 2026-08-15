@@ -33,23 +33,25 @@ The clinical or research outcome against which physiological values are analyzed
 
 ## Application structure
 
-OutMapper currently includes concepts for workspaces, projects, and datasets. A workspace may contain multiple projects, and each dataset belongs to exactly one project. Other domain relationships and responsibilities will be documented as the product model is clarified.
+OutMapper currently includes concepts for workspaces, projects, datasets, and cohorts. A workspace may contain multiple projects, and each dataset or cohort belongs to exactly one project. Other domain relationships and responsibilities will be documented as the product model is clarified.
 
 ## Research workflow
 
-Importing and parsing raw CSV data into a dataset's time series is implemented; see [Data and folder structure](#data-and-folder-structure) below. The rest of the workflow — configuring an analysis, generating an outcome heatmap, and exporting results — is not yet documented.
+Importing and parsing raw CSV data into a dataset's time series is implemented; see [Data and folder structure](#data-and-folder-structure) below. Importing and parsing a single CSV file into a [Cohort](glossary.md#cohort) — one patient ID column and one outcome column, identified by header name — is also implemented, including a basic picker for which dataset(s) the cohort is linked to; the patient-level matching that linkage is meant to support is not yet implemented. The rest of the workflow — configuring an analysis, generating an outcome heatmap, and exporting results — is not yet documented.
 
 ## Data and folder structure
 
 The application uses a selected workspace folder. A workspace may contain a `Projects` directory, where each immediate subdirectory represents one project. Users may select one project at a time as the current project.
 
-Each project contains an `OutMapper_InternalFiles` directory (which may contain a `Datasets` directory) and an `OutMapper_ProjectOutput` directory (for generated files such as exported PDFs). A dataset is scoped to exactly one project and has no existence independent of a project.
+Each project contains an `OutMapper_InternalFiles` directory (which may contain `Datasets` and `Cohorts` directories) and an `OutMapper_ProjectOutput` directory (for generated files such as exported PDFs). A dataset or cohort is scoped to exactly one project and has no existence independent of a project.
 
 Creating a dataset also creates a same-named folder inside `Datasets`, containing an `Imported raw data` subfolder. When the user selects a folder of raw data while creating the dataset, its `.csv` files are copied into `Imported raw data`.
 
 A dataset's raw CSV files can then be parsed: the user configures how to read them (delimiter, decimal separator, time column, timestamp format) and triggers a parse, which validates and converts each file into a [Time series](glossary.md#time-series) — one file per patient. The outcome (which files succeeded, and why any failed) is shown per file and kept so it can be reviewed again later without re-parsing. See [`architecture.md`](architecture.md) for the validation rules (`DataStructures`/`Algorithms` projects) and the resulting file layout (Persistence and workspace layout).
 
-Additional workspace contents, dataset formats, project metadata, and persistence rules are not yet fully documented.
+Creating a [Cohort](glossary.md#cohort) works the same way, one level simpler: the user selects a single raw `.csv` file (instead of a folder), which is copied into a same-named folder inside `Cohorts`, and picks which existing dataset(s) in the project the cohort should be linked to. The cohort's CSV file can then be parsed: the user configures the delimiter and the patient-ID/outcome column headers, and triggers a parse, which validates and converts the file into a Cohort — one row per patient. The outcome (patient count, or the reason parsing failed) is kept so it can be reviewed again later without re-parsing.
+
+Additional workspace contents, dataset and cohort formats, project metadata, and persistence rules are not yet fully documented.
 
 Future project calculations may continue in the background when the user selects another project. The execution and state model for that behavior has not yet been designed or implemented.
 
