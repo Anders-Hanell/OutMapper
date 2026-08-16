@@ -105,7 +105,7 @@ Message contract type names do not carry a `Msg` suffix.
 
 ### `OutMapper.Tests`
 
-The NUnit test project. It references `OutMapper` and currently contains only the generated placeholder test; substantive behavior is not yet covered by automated tests.
+The xUnit test project. It references `OutMapper` and currently contains only the generated placeholder test; substantive behavior is not yet covered by automated tests.
 
 ## Runtime composition
 
@@ -299,7 +299,7 @@ Platform-specific behavior should be verified against the target frameworks and 
 
 ## Testing and validation
 
-The solution has an NUnit test project with FluentAssertions and coverage tooling configured, but it does not yet contain meaningful tests.
+The solution has an xUnit test project with FluentAssertions and coverage tooling configured, but it does not yet contain meaningful tests.
 
 Current verification therefore depends primarily on:
 

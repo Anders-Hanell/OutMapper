@@ -13,7 +13,14 @@
       "WebFetch(domain:platform.uno)",
       "Bash(dotnet run *)",
       "Bash(echo \"launched with PID $!\")",
-      "Bash(dotnet test *)"
+      "Bash(dotnet test *)",
+      "WebFetch(domain:www.nuget.org)",
+      "WebFetch(domain:xunit.net)",
+      "Bash(dotnet restore *)",
+      "Bash(git status *)",
+      "Bash(sqlite3 -readonly 'file:/Users/andershanell/Library/Application Support/Code/User/workspaceStorage/c0bb76f4ca86c0900496dfde60061ba7/state.vscdb?immutable=1' 'SELECT value FROM ItemTable WHERE key='\\\\''testing.treeState'\\\\'';')",
+      "Bash(sqlite3 -readonly 'file:/Users/andershanell/Library/Application Support/Code/User/workspaceStorage/c0bb76f4ca86c0900496dfde60061ba7/state.vscdb?immutable=1' 'SELECT length\\(value\\) FROM ItemTable WHERE key='\\\\''storedTestResults'\\\\'';')",
+      "Bash(sqlite3 -readonly 'file:/Users/andershanell/Library/Application Support/Code/User/workspaceStorage/c0bb76f4ca86c0900496dfde60061ba7/state.vscdb?immutable=1' 'SELECT length\\(value\\) FROM ItemTable WHERE key='\\\\''ms-dotnettools.csdevkit'\\\\'';')"
     ]
   }
 }
