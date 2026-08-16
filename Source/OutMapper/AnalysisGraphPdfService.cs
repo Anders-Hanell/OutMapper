@@ -1,6 +1,7 @@
 using SkiaSharp;
 using System.IO;
 using Messages;
+using TaskManager;
 using Path = System.IO.Path;
 
 namespace OutMapper;
@@ -12,9 +13,12 @@ internal static class AnalysisGraphPdfService
     /// colored heatmap and writes it to the project's Output folder as "&lt;analysisName&gt;.pdf".
     /// Returns the written file path, or null if it could not be written.
     /// </summary>
-    public static string? GeneratePdf(string projectName, string analysisName, GenerateAnalysisGraphResponse graph)
+    public static string? GeneratePdf(string projectName, string analysisName, GenerateAnalysisGraphResponse graph) =>
+        GeneratePdf(LocalFileSystem.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(), projectName, analysisName, graph);
+
+    internal static string? GeneratePdf(
+        IFileSystem fileSystem, string? workspaceFolder, string projectName, string analysisName, GenerateAnalysisGraphResponse graph)
     {
-        var workspaceFolder = SettingsWorkspaceContent.LoadWorkspaceFolderPath();
         if (string.IsNullOrWhiteSpace(workspaceFolder))
         {
             return null;
@@ -28,10 +32,10 @@ internal static class AnalysisGraphPdfService
         }
 
         var outputFolder = Path.Combine(workspaceFolder, "Projects", projectName, ProjectFolderService.ProjectOutputFolderName);
-        Directory.CreateDirectory(outputFolder);
+        fileSystem.CreateDirectory(outputFolder);
         var outputFile = Path.Combine(outputFolder, analysisName + ".pdf");
 
-        using var stream = File.OpenWrite(outputFile);
+        using var stream = fileSystem.OpenWrite(outputFile);
         using var document = SKDocument.CreatePdf(stream);
         if (document is null)
         {

@@ -10,14 +10,15 @@ internal static class FigureService
 {
     private const string FigureConfigFileName = "figure-config.json";
 
-    internal static FigureLayoutResponse ReadLayout(string? workspaceFolder, string projectName, string figureName)
+    internal static FigureLayoutResponse ReadLayout(
+        IFileSystem fileSystem, string? workspaceFolder, string projectName, string figureName)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder))
         {
             return NoLayout(projectName, figureName);
         }
 
-        var config = ReadConfig(workspaceFolder, projectName, figureName);
+        var config = ReadConfig(fileSystem, workspaceFolder, projectName, figureName);
         if (config is null)
         {
             return NoLayout(projectName, figureName);
@@ -29,7 +30,7 @@ internal static class FigureService
     }
 
     internal static SaveFigureSizeResponse SaveSize(
-        string? workspaceFolder, string projectName, string figureName, int rowCount, int colCount)
+        IFileSystem fileSystem, string? workspaceFolder, string projectName, string figureName, int rowCount, int colCount)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
             string.IsNullOrWhiteSpace(figureName))
@@ -48,14 +49,14 @@ internal static class FigureService
 
         var figureFolder = Path.Combine(
             workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Figures", figureName);
-        if (!Directory.Exists(figureFolder))
+        if (!fileSystem.DirectoryExists(figureFolder))
         {
             return new SaveFigureSizeResponse(
                 projectName, figureName, Success: false, $"Figure '{figureName}' does not exist.",
                 0, 0, ImmutableArray<string?>.Empty);
         }
 
-        var existingConfig = ReadConfig(workspaceFolder, projectName, figureName);
+        var existingConfig = ReadConfig(fileSystem, workspaceFolder, projectName, figureName);
         var remappedCells = new string?[rowCount * colCount];
 
         if (existingConfig is not null)
@@ -77,7 +78,7 @@ internal static class FigureService
             CellAnalysisNames = remappedCells
         };
 
-        if (!WriteConfig(workspaceFolder, projectName, figureName, newConfig))
+        if (!WriteConfig(fileSystem, workspaceFolder, projectName, figureName, newConfig))
         {
             return new SaveFigureSizeResponse(
                 projectName, figureName, Success: false, "Could not save the figure's size.",
@@ -90,7 +91,7 @@ internal static class FigureService
     }
 
     internal static CreateFigureGraphResponse CreateGraph(
-        string? workspaceFolder, string projectName, string figureName, int rowCount, int colCount,
+        IFileSystem fileSystem, string? workspaceFolder, string projectName, string figureName, int rowCount, int colCount,
         ImmutableArray<string?> cellAnalysisNames)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
@@ -114,7 +115,7 @@ internal static class FigureService
             ColCount = colCount,
             CellAnalysisNames = cellAnalysisNames.ToArray()
         };
-        WriteConfig(workspaceFolder, projectName, figureName, config);
+        WriteConfig(fileSystem, workspaceFolder, projectName, figureName, config);
 
         var cells = new List<FigureCellGraphData>(rowCount * colCount);
 
@@ -133,7 +134,7 @@ internal static class FigureService
                     continue;
                 }
 
-                var graphData = AnalysisService.ReadPersistedGraphData(workspaceFolder, projectName, analysisName);
+                var graphData = AnalysisService.ReadPersistedGraphData(fileSystem, workspaceFolder, projectName, analysisName);
                 if (!graphData.Found)
                 {
                     cells.Add(new FigureCellGraphData(
@@ -160,17 +161,17 @@ internal static class FigureService
         return new FigureLayoutResponse(projectName, figureName, LayoutExists: false, 0, 0, ImmutableArray<string?>.Empty);
     }
 
-    private static FigureConfigDto? ReadConfig(string workspaceFolder, string projectName, string figureName)
+    private static FigureConfigDto? ReadConfig(IFileSystem fileSystem, string workspaceFolder, string projectName, string figureName)
     {
         var configFilePath = ResolveConfigFilePath(workspaceFolder, projectName, figureName);
-        if (!File.Exists(configFilePath))
+        if (!fileSystem.FileExists(configFilePath))
         {
             return null;
         }
 
         try
         {
-            return JsonSerializer.Deserialize<FigureConfigDto>(File.ReadAllBytes(configFilePath));
+            return JsonSerializer.Deserialize<FigureConfigDto>(fileSystem.ReadAllBytes(configFilePath));
         }
         catch (JsonException)
         {
@@ -178,13 +179,14 @@ internal static class FigureService
         }
     }
 
-    private static bool WriteConfig(string workspaceFolder, string projectName, string figureName, FigureConfigDto config)
+    private static bool WriteConfig(
+        IFileSystem fileSystem, string workspaceFolder, string projectName, string figureName, FigureConfigDto config)
     {
         try
         {
             var configFilePath = ResolveConfigFilePath(workspaceFolder, projectName, figureName);
-            Directory.CreateDirectory(Path.GetDirectoryName(configFilePath)!);
-            File.WriteAllBytes(configFilePath, JsonSerializer.SerializeToUtf8Bytes(config));
+            fileSystem.CreateDirectory(Path.GetDirectoryName(configFilePath)!);
+            fileSystem.WriteAllBytes(configFilePath, JsonSerializer.SerializeToUtf8Bytes(config));
             return true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

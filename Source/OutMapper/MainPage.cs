@@ -24,8 +24,9 @@ public sealed partial class MainPage : Page
         };
 
         var navigationManager = new NavigationManager(
-            contentControl,
+            new ContentControlHost(contentControl),
             settingsContent,
+            projectsPanel,
             projectsPanel);
 
         var navigationPanel = new MainNavigationPanel(navigationManager);

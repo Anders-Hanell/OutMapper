@@ -5,7 +5,7 @@ using Uno.Toolkit.UI;
 
 namespace OutMapper;
 
-internal sealed class ProjectsPanel : Grid
+internal sealed class ProjectsPanel : Grid, IRefreshable
 {
     internal static ProjectsPanel? Current { get; private set; }
 

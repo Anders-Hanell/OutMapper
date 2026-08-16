@@ -17,5 +17,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Source\OutMapper\OutMapper.csproj" />
+    <ProjectReference Include="..\TestSupport\TestSupport.csproj" />
   </ItemGroup>
 </Project>

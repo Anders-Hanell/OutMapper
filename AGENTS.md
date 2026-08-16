@@ -18,6 +18,13 @@
 
 - Report the final warning count, error count, and exit status. Do not describe a build as successful unless the command completes with exit code 0.
 
+## Testing
+
+- Run `dotnet test OutMapper.sln --no-restore --verbosity:minimal` from the repository root; report pass/fail/skip counts per project, and do not describe tests as passing unless the command exits 0.
+- New code that touches disk, `ApplicationData` settings, or a file/folder picker should take `TaskManager.IFileSystem` / `OutMapper.ISettingsStore` / `OutMapper.IFolderPicker`/`IFilePicker` as an explicit parameter instead of calling `System.IO`, `ApplicationData`, or `Windows.Storage.Pickers` directly — see `docs/architecture.md#testing-and-validation` for the pattern and existing examples (`ProjectFolderService`, `TaskManagerService`). Test it against the fakes in `Tests/TestSupport` (`InMemoryFileSystem`, `InMemorySettingsStore`, `FakeFolderPicker`, `FakeFilePicker`), not real disk — each fake is independent, so this stays safe under parallel test runs.
+- UI navigation/workflow logic is only unit-testable once pulled out of a live Uno control into a plain class depending on small seam interfaces, the way `NavigationManager` depends on `IContentHost`/`IRefreshable` instead of `ContentControl`/`ProjectsPanel`. Apply the same extraction to a panel before trying to unit test its logic, rather than driving the real UI in a test.
+- Don't drive the live app (Uno App MCP or otherwise) as a substitute for an automated test that could instead run in `dotnet test` — reserve that for what automated tests genuinely can't cover.
+
 ## Uno Platform MCPs
 
 - Uno MCP usage is metered and was approaching its limit as of 2026-08-10. Prefer solving problems without the Uno MCPs first (read code, use existing knowledge, build/test locally); fall back to the MCPs only when a task genuinely requires them (e.g. actually needing to inspect or drive the live running app, or needing docs content not otherwise available).

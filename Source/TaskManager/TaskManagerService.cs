@@ -67,7 +67,7 @@ internal static class TaskManagerService
 
     internal static Task HandleDatasetListRequestAsync(DatasetListRequest message)
     {
-        var datasetNames = LocateDatasets(_workspaceFolder, message.ProjectName);
+        var datasetNames = LocateDatasets(LocalFileSystem.Instance, _workspaceFolder, message.ProjectName);
 
         var response = new DatasetListResponse(message.ProjectName, datasetNames);
 
@@ -77,7 +77,8 @@ internal static class TaskManagerService
 
     internal static Task HandleCreateDatasetRequestAsync(CreateDatasetRequest message)
     {
-        var createdDataset = CreateDataset(_workspaceFolder, message.ProjectName, message.DatasetName, message.RawDataFolderPath);
+        var createdDataset = CreateDataset(
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.DatasetName, message.RawDataFolderPath);
 
         var response = new CreateDatasetResponse(message.DatasetName, message.ProjectName, createdDataset);
 
@@ -88,14 +89,15 @@ internal static class TaskManagerService
     internal static async Task HandleParseDatasetRequestAsync(ParseDatasetRequest message)
     {
         var response = await DatasetParsingService.ParseDatasetAsync(
-            _workspaceFolder, message.ProjectName, message.DatasetName, message.ParseParams);
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.DatasetName, message.ParseParams);
 
         GatewayToOutMapper.SendMessage(response);
     }
 
     internal static Task HandleParseResultRequestAsync(ParseResultRequest message)
     {
-        var response = DatasetParsingService.ReadPersistedParseResult(_workspaceFolder, message.ProjectName, message.DatasetName);
+        var response = DatasetParsingService.ReadPersistedParseResult(
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.DatasetName);
 
         GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;
@@ -103,7 +105,7 @@ internal static class TaskManagerService
 
     internal static Task HandleCohortListRequestAsync(CohortListRequest message)
     {
-        var cohortNames = LocateCohorts(_workspaceFolder, message.ProjectName);
+        var cohortNames = LocateCohorts(LocalFileSystem.Instance, _workspaceFolder, message.ProjectName);
 
         var response = new CohortListResponse(message.ProjectName, cohortNames);
 
@@ -114,7 +116,8 @@ internal static class TaskManagerService
     internal static Task HandleCreateCohortRequestAsync(CreateCohortRequest message)
     {
         var createdCohort = CreateCohort(
-            _workspaceFolder, message.ProjectName, message.CohortName, message.RawCsvFilePath, message.LinkedDatasetNames);
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.CohortName,
+            message.RawCsvFilePath, message.LinkedDatasetNames);
 
         var response = new CreateCohortResponse(message.CohortName, message.ProjectName, createdCohort);
 
@@ -125,14 +128,15 @@ internal static class TaskManagerService
     internal static async Task HandleParseCohortRequestAsync(ParseCohortRequest message)
     {
         var response = await CohortParsingService.ParseCohortAsync(
-            _workspaceFolder, message.ProjectName, message.CohortName, message.ParseParams);
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.CohortName, message.ParseParams);
 
         GatewayToOutMapper.SendMessage(response);
     }
 
     internal static Task HandleCohortParseResultRequestAsync(CohortParseResultRequest message)
     {
-        var response = CohortParsingService.ReadPersistedParseResult(_workspaceFolder, message.ProjectName, message.CohortName);
+        var response = CohortParsingService.ReadPersistedParseResult(
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.CohortName);
 
         GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;
@@ -140,7 +144,7 @@ internal static class TaskManagerService
 
     internal static Task HandleAnalysisListRequestAsync(AnalysisListRequest message)
     {
-        var analysisNames = LocateAnalyses(_workspaceFolder, message.ProjectName);
+        var analysisNames = LocateAnalyses(LocalFileSystem.Instance, _workspaceFolder, message.ProjectName);
 
         var response = new AnalysisListResponse(message.ProjectName, analysisNames);
 
@@ -150,7 +154,7 @@ internal static class TaskManagerService
 
     internal static Task HandleCreateAnalysisRequestAsync(CreateAnalysisRequest message)
     {
-        var createdAnalysis = CreateAnalysis(_workspaceFolder, message.ProjectName, message.AnalysisName);
+        var createdAnalysis = CreateAnalysis(LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.AnalysisName);
 
         var response = new CreateAnalysisResponse(message.AnalysisName, message.ProjectName, createdAnalysis);
 
@@ -161,14 +165,15 @@ internal static class TaskManagerService
     internal static async Task HandleGenerateAnalysisGraphRequestAsync(GenerateAnalysisGraphRequest message)
     {
         var response = await AnalysisService.GenerateGraphAsync(
-            _workspaceFolder, message.ProjectName, message.AnalysisName, message.Settings);
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.AnalysisName, message.Settings);
 
         GatewayToOutMapper.SendMessage(response);
     }
 
     internal static Task HandleAnalysisResultRequestAsync(AnalysisResultRequest message)
     {
-        var response = AnalysisService.ReadPersistedResult(_workspaceFolder, message.ProjectName, message.AnalysisName);
+        var response = AnalysisService.ReadPersistedResult(
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.AnalysisName);
 
         GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;
@@ -176,7 +181,7 @@ internal static class TaskManagerService
 
     internal static Task HandleFigureListRequestAsync(FigureListRequest message)
     {
-        var figureNames = LocateFigures(_workspaceFolder, message.ProjectName);
+        var figureNames = LocateFigures(LocalFileSystem.Instance, _workspaceFolder, message.ProjectName);
 
         var response = new FigureListResponse(message.ProjectName, figureNames);
 
@@ -186,7 +191,7 @@ internal static class TaskManagerService
 
     internal static Task HandleCreateFigureRequestAsync(CreateFigureRequest message)
     {
-        var createdFigure = CreateFigure(_workspaceFolder, message.ProjectName, message.FigureName);
+        var createdFigure = CreateFigure(LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.FigureName);
 
         var response = new CreateFigureResponse(message.FigureName, message.ProjectName, createdFigure);
 
@@ -196,7 +201,8 @@ internal static class TaskManagerService
 
     internal static Task HandleFigureLayoutRequestAsync(FigureLayoutRequest message)
     {
-        var response = FigureService.ReadLayout(_workspaceFolder, message.ProjectName, message.FigureName);
+        var response = FigureService.ReadLayout(
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.FigureName);
 
         GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;
@@ -205,7 +211,8 @@ internal static class TaskManagerService
     internal static Task HandleSaveFigureSizeRequestAsync(SaveFigureSizeRequest message)
     {
         var response = FigureService.SaveSize(
-            _workspaceFolder, message.ProjectName, message.FigureName, message.RowCount, message.ColCount);
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.FigureName,
+            message.RowCount, message.ColCount);
 
         GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;
@@ -213,7 +220,8 @@ internal static class TaskManagerService
 
     internal static Task HandleAnalysesWithGraphListRequestAsync(AnalysesWithGraphListRequest message)
     {
-        var analysisNames = AnalysisService.ListAnalysesWithPersistedGraph(_workspaceFolder, message.ProjectName);
+        var analysisNames = AnalysisService.ListAnalysesWithPersistedGraph(
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName);
 
         var response = new AnalysesWithGraphListResponse(message.ProjectName, analysisNames);
 
@@ -224,14 +232,15 @@ internal static class TaskManagerService
     internal static Task HandleCreateFigureGraphRequestAsync(CreateFigureGraphRequest message)
     {
         var response = FigureService.CreateGraph(
-            _workspaceFolder, message.ProjectName, message.FigureName, message.RowCount, message.ColCount,
-            message.CellAnalysisNames);
+            LocalFileSystem.Instance, _workspaceFolder, message.ProjectName, message.FigureName,
+            message.RowCount, message.ColCount, message.CellAnalysisNames);
 
         GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;
     }
 
-    private static bool CreateDataset(string? workspaceFolder, string? projectName, string datasetName, string? rawDataFolderPath)
+    internal static bool CreateDataset(
+        IFileSystem fileSystem, string? workspaceFolder, string? projectName, string datasetName, string? rawDataFolderPath)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
             string.IsNullOrWhiteSpace(datasetName))
@@ -240,7 +249,7 @@ internal static class TaskManagerService
         }
 
         var projectFolder = Path.Combine(workspaceFolder, "Projects", projectName);
-        if (!Directory.Exists(projectFolder))
+        if (!fileSystem.DirectoryExists(projectFolder))
         {
             return false;
         }
@@ -248,28 +257,26 @@ internal static class TaskManagerService
         try
         {
             var datasetsFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Datasets");
-            Directory.CreateDirectory(datasetsFolder);
+            fileSystem.CreateDirectory(datasetsFolder);
 
             var datasetFile = Path.Combine(datasetsFolder, datasetName + ".omds");
-            if (File.Exists(datasetFile))
+            if (fileSystem.FileExists(datasetFile))
             {
                 return false;
             }
 
-            using (File.Create(datasetFile))
-            {
-            }
+            fileSystem.CreateEmptyFile(datasetFile);
 
             var datasetFolder = Path.Combine(datasetsFolder, datasetName);
             var importedRawDataFolder = Path.Combine(datasetFolder, "Imported raw data");
-            Directory.CreateDirectory(importedRawDataFolder);
+            fileSystem.CreateDirectory(importedRawDataFolder);
 
-            if (!string.IsNullOrWhiteSpace(rawDataFolderPath) && Directory.Exists(rawDataFolderPath))
+            if (!string.IsNullOrWhiteSpace(rawDataFolderPath) && fileSystem.DirectoryExists(rawDataFolderPath))
             {
-                foreach (var csvFile in Directory.GetFiles(rawDataFolderPath, "*.csv", SearchOption.TopDirectoryOnly))
+                foreach (var csvFile in fileSystem.GetFiles(rawDataFolderPath, "*.csv"))
                 {
                     var destinationFile = Path.Combine(importedRawDataFolder, Path.GetFileName(csvFile));
-                    File.Copy(csvFile, destinationFile, overwrite: false);
+                    fileSystem.CopyFile(csvFile, destinationFile, overwrite: false);
                 }
             }
 
@@ -281,21 +288,21 @@ internal static class TaskManagerService
         }
     }
 
-    private static ImmutableArray<string> LocateDatasets(string? workspaceFolder, string? projectName)
+    internal static ImmutableArray<string> LocateDatasets(IFileSystem fileSystem, string? workspaceFolder, string? projectName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder) ||
             string.IsNullOrWhiteSpace(projectName))
         {
             return ImmutableArray<string>.Empty;
         }
 
         var datasetsFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Datasets");
-        if (!Directory.Exists(datasetsFolder))
+        if (!fileSystem.DirectoryExists(datasetsFolder))
         {
             return ImmutableArray<string>.Empty;
         }
 
-        var datasetFiles = Directory.GetFiles(datasetsFolder, "*.omds", SearchOption.TopDirectoryOnly);
+        var datasetFiles = fileSystem.GetFiles(datasetsFolder, "*.omds");
         if (datasetFiles.Length == 0)
         {
             return ImmutableArray<string>.Empty;
@@ -307,8 +314,9 @@ internal static class TaskManagerService
             .ToImmutableArray();
     }
 
-    private static bool CreateCohort(
-        string? workspaceFolder, string? projectName, string cohortName, string? rawCsvFilePath, ImmutableArray<string> linkedDatasetNames)
+    internal static bool CreateCohort(
+        IFileSystem fileSystem, string? workspaceFolder, string? projectName, string cohortName,
+        string? rawCsvFilePath, ImmutableArray<string> linkedDatasetNames)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
             string.IsNullOrWhiteSpace(cohortName))
@@ -317,7 +325,7 @@ internal static class TaskManagerService
         }
 
         var projectFolder = Path.Combine(workspaceFolder, "Projects", projectName);
-        if (!Directory.Exists(projectFolder))
+        if (!fileSystem.DirectoryExists(projectFolder))
         {
             return false;
         }
@@ -325,30 +333,28 @@ internal static class TaskManagerService
         try
         {
             var cohortsFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Cohorts");
-            Directory.CreateDirectory(cohortsFolder);
+            fileSystem.CreateDirectory(cohortsFolder);
 
             var cohortFile = Path.Combine(cohortsFolder, cohortName + ".omch");
-            if (File.Exists(cohortFile))
+            if (fileSystem.FileExists(cohortFile))
             {
                 return false;
             }
 
-            using (File.Create(cohortFile))
-            {
-            }
+            fileSystem.CreateEmptyFile(cohortFile);
 
             var cohortFolder = Path.Combine(cohortsFolder, cohortName);
             var importedRawDataFolder = Path.Combine(cohortFolder, "Imported raw data");
-            Directory.CreateDirectory(importedRawDataFolder);
+            fileSystem.CreateDirectory(importedRawDataFolder);
 
-            if (!string.IsNullOrWhiteSpace(rawCsvFilePath) && File.Exists(rawCsvFilePath))
+            if (!string.IsNullOrWhiteSpace(rawCsvFilePath) && fileSystem.FileExists(rawCsvFilePath))
             {
                 var destinationFile = Path.Combine(importedRawDataFolder, Path.GetFileName(rawCsvFilePath));
-                File.Copy(rawCsvFilePath, destinationFile, overwrite: false);
+                fileSystem.CopyFile(rawCsvFilePath, destinationFile, overwrite: false);
             }
 
             var linkedDatasetsFile = Path.Combine(cohortFolder, "linked-datasets.json");
-            File.WriteAllBytes(linkedDatasetsFile, JsonSerializer.SerializeToUtf8Bytes(linkedDatasetNames.ToArray()));
+            fileSystem.WriteAllBytes(linkedDatasetsFile, JsonSerializer.SerializeToUtf8Bytes(linkedDatasetNames.ToArray()));
 
             return true;
         }
@@ -358,21 +364,21 @@ internal static class TaskManagerService
         }
     }
 
-    private static ImmutableArray<string> LocateCohorts(string? workspaceFolder, string? projectName)
+    internal static ImmutableArray<string> LocateCohorts(IFileSystem fileSystem, string? workspaceFolder, string? projectName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder) ||
             string.IsNullOrWhiteSpace(projectName))
         {
             return ImmutableArray<string>.Empty;
         }
 
         var cohortsFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Cohorts");
-        if (!Directory.Exists(cohortsFolder))
+        if (!fileSystem.DirectoryExists(cohortsFolder))
         {
             return ImmutableArray<string>.Empty;
         }
 
-        var cohortFiles = Directory.GetFiles(cohortsFolder, "*.omch", SearchOption.TopDirectoryOnly);
+        var cohortFiles = fileSystem.GetFiles(cohortsFolder, "*.omch");
         if (cohortFiles.Length == 0)
         {
             return ImmutableArray<string>.Empty;
@@ -384,7 +390,7 @@ internal static class TaskManagerService
             .ToImmutableArray();
     }
 
-    private static bool CreateAnalysis(string? workspaceFolder, string? projectName, string analysisName)
+    internal static bool CreateAnalysis(IFileSystem fileSystem, string? workspaceFolder, string? projectName, string analysisName)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
             string.IsNullOrWhiteSpace(analysisName))
@@ -393,7 +399,7 @@ internal static class TaskManagerService
         }
 
         var projectFolder = Path.Combine(workspaceFolder, "Projects", projectName);
-        if (!Directory.Exists(projectFolder))
+        if (!fileSystem.DirectoryExists(projectFolder))
         {
             return false;
         }
@@ -401,19 +407,17 @@ internal static class TaskManagerService
         try
         {
             var analysesFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Analyses");
-            Directory.CreateDirectory(analysesFolder);
+            fileSystem.CreateDirectory(analysesFolder);
 
             var analysisFile = Path.Combine(analysesFolder, analysisName + ".oman");
-            if (File.Exists(analysisFile))
+            if (fileSystem.FileExists(analysisFile))
             {
                 return false;
             }
 
-            using (File.Create(analysisFile))
-            {
-            }
+            fileSystem.CreateEmptyFile(analysisFile);
 
-            Directory.CreateDirectory(Path.Combine(analysesFolder, analysisName));
+            fileSystem.CreateDirectory(Path.Combine(analysesFolder, analysisName));
 
             return true;
         }
@@ -423,21 +427,21 @@ internal static class TaskManagerService
         }
     }
 
-    private static ImmutableArray<string> LocateAnalyses(string? workspaceFolder, string? projectName)
+    internal static ImmutableArray<string> LocateAnalyses(IFileSystem fileSystem, string? workspaceFolder, string? projectName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder) ||
             string.IsNullOrWhiteSpace(projectName))
         {
             return ImmutableArray<string>.Empty;
         }
 
         var analysesFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Analyses");
-        if (!Directory.Exists(analysesFolder))
+        if (!fileSystem.DirectoryExists(analysesFolder))
         {
             return ImmutableArray<string>.Empty;
         }
 
-        var analysisFiles = Directory.GetFiles(analysesFolder, "*.oman", SearchOption.TopDirectoryOnly);
+        var analysisFiles = fileSystem.GetFiles(analysesFolder, "*.oman");
         if (analysisFiles.Length == 0)
         {
             return ImmutableArray<string>.Empty;
@@ -449,7 +453,7 @@ internal static class TaskManagerService
             .ToImmutableArray();
     }
 
-    private static bool CreateFigure(string? workspaceFolder, string? projectName, string figureName)
+    internal static bool CreateFigure(IFileSystem fileSystem, string? workspaceFolder, string? projectName, string figureName)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
             string.IsNullOrWhiteSpace(figureName))
@@ -458,7 +462,7 @@ internal static class TaskManagerService
         }
 
         var projectFolder = Path.Combine(workspaceFolder, "Projects", projectName);
-        if (!Directory.Exists(projectFolder))
+        if (!fileSystem.DirectoryExists(projectFolder))
         {
             return false;
         }
@@ -466,19 +470,17 @@ internal static class TaskManagerService
         try
         {
             var figuresFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Figures");
-            Directory.CreateDirectory(figuresFolder);
+            fileSystem.CreateDirectory(figuresFolder);
 
             var figureFile = Path.Combine(figuresFolder, figureName + ".omfg");
-            if (File.Exists(figureFile))
+            if (fileSystem.FileExists(figureFile))
             {
                 return false;
             }
 
-            using (File.Create(figureFile))
-            {
-            }
+            fileSystem.CreateEmptyFile(figureFile);
 
-            Directory.CreateDirectory(Path.Combine(figuresFolder, figureName));
+            fileSystem.CreateDirectory(Path.Combine(figuresFolder, figureName));
 
             return true;
         }
@@ -488,21 +490,21 @@ internal static class TaskManagerService
         }
     }
 
-    private static ImmutableArray<string> LocateFigures(string? workspaceFolder, string? projectName)
+    internal static ImmutableArray<string> LocateFigures(IFileSystem fileSystem, string? workspaceFolder, string? projectName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder) ||
             string.IsNullOrWhiteSpace(projectName))
         {
             return ImmutableArray<string>.Empty;
         }
 
         var figuresFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Figures");
-        if (!Directory.Exists(figuresFolder))
+        if (!fileSystem.DirectoryExists(figuresFolder))
         {
             return ImmutableArray<string>.Empty;
         }
 
-        var figureFiles = Directory.GetFiles(figuresFolder, "*.omfg", SearchOption.TopDirectoryOnly);
+        var figureFiles = fileSystem.GetFiles(figuresFolder, "*.omfg");
         if (figureFiles.Length == 0)
         {
             return ImmutableArray<string>.Empty;

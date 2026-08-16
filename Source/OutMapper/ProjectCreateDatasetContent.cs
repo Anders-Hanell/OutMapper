@@ -6,20 +6,26 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Windows.Storage.Pickers;
 
 namespace OutMapper;
 
 public sealed class ProjectCreateDatasetContent : Border
 {
+    private readonly IFolderPicker _folderPicker;
     private readonly TextBox _datasetNameInput;
     private readonly TextBlock _selectedFolderLabel;
     private readonly TextBlock _resultLabel;
     private string? _currentProjectName;
     private string? _selectedRawDataFolderPath;
 
-    public ProjectCreateDatasetContent()
+    public ProjectCreateDatasetContent() : this(new WindowsFolderPicker())
     {
+    }
+
+    internal ProjectCreateDatasetContent(IFolderPicker folderPicker)
+    {
+        _folderPicker = folderPicker;
+
         Padding = new Thickness(24);
         Background = GetThemeBrush("SystemControlBackgroundChromeMediumLowBrush");
         CornerRadius = new CornerRadius(12);
@@ -95,26 +101,16 @@ public sealed class ProjectCreateDatasetContent : Border
 
     private async void SelectRawDataFolder()
     {
-        var folder = await PickRawDataFolderAsync();
-        if (folder is null)
+        var path = await _folderPicker.PickFolderAsync();
+        if (path is null)
         {
             return;
         }
 
-        _selectedRawDataFolderPath = folder.Path;
+        _selectedRawDataFolderPath = path;
 
-        var csvFileCount = Directory.GetFiles(folder.Path, "*.csv", SearchOption.TopDirectoryOnly).Length;
-        _selectedFolderLabel.Text = $"{folder.Path} ({csvFileCount} CSV file(s) found)";
-    }
-
-    private static async Task<Windows.Storage.StorageFolder?> PickRawDataFolderAsync()
-    {
-        var picker = new FolderPicker
-        {
-            SuggestedStartLocation = PickerLocationId.Desktop
-        };
-        picker.FileTypeFilter.Add("*");
-        return await picker.PickSingleFolderAsync();
+        var csvFileCount = Directory.GetFiles(path, "*.csv", SearchOption.TopDirectoryOnly).Length;
+        _selectedFolderLabel.Text = $"{path} ({csvFileCount} CSV file(s) found)";
     }
 
     private void CreateDataset()

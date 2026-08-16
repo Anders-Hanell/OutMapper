@@ -1,5 +1,5 @@
 using System.IO;
-using Windows.Storage;
+using TaskManager;
 
 namespace OutMapper;
 
@@ -23,17 +23,19 @@ internal static class ProjectFolderService
         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
     };
 
-    public static string[] GetProjectNames(out string? error)
+    public static string[] GetProjectNames(out string? error) =>
+        GetProjectNames(LocalFileSystem.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(), out error);
+
+    internal static string[] GetProjectNames(IFileSystem fileSystem, string? workspaceFolder, out string? error)
     {
-        var workspaceFolder = SettingsWorkspaceContent.LoadWorkspaceFolderPath();
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder))
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder))
         {
             error = "Select a valid workspace before viewing projects.";
             return [];
         }
 
         var projectsFolder = System.IO.Path.Combine(workspaceFolder, "Projects");
-        if (!Directory.Exists(projectsFolder))
+        if (!fileSystem.DirectoryExists(projectsFolder))
         {
             error = null;
             return [];
@@ -42,7 +44,7 @@ internal static class ProjectFolderService
         try
         {
             error = null;
-            return Directory.GetDirectories(projectsFolder, "*", SearchOption.TopDirectoryOnly)
+            return fileSystem.GetDirectories(projectsFolder)
                 .Select(System.IO.Path.GetFileName)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Cast<string>()
@@ -56,10 +58,12 @@ internal static class ProjectFolderService
         }
     }
 
-    public static bool TryCreateProject(string? proposedName, out string message)
+    public static bool TryCreateProject(string? proposedName, out string message) =>
+        TryCreateProject(LocalFileSystem.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(), proposedName, out message);
+
+    internal static bool TryCreateProject(IFileSystem fileSystem, string? workspaceFolder, string? proposedName, out string message)
     {
-        var workspaceFolder = SettingsWorkspaceContent.LoadWorkspaceFolderPath();
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder))
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder))
         {
             message = "Select a valid workspace before creating a project.";
             return false;
@@ -76,15 +80,15 @@ internal static class ProjectFolderService
 
         try
         {
-            if (Directory.Exists(projectFolder))
+            if (fileSystem.DirectoryExists(projectFolder))
             {
                 message = $"A project named '{projectName}' already exists.";
                 return false;
             }
 
-            Directory.CreateDirectory(projectFolder);
-            Directory.CreateDirectory(System.IO.Path.Combine(projectFolder, InternalFilesFolderName));
-            Directory.CreateDirectory(System.IO.Path.Combine(projectFolder, ProjectOutputFolderName));
+            fileSystem.CreateDirectory(projectFolder);
+            fileSystem.CreateDirectory(System.IO.Path.Combine(projectFolder, InternalFilesFolderName));
+            fileSystem.CreateDirectory(System.IO.Path.Combine(projectFolder, ProjectOutputFolderName));
             message = $"Project '{projectName}' was created successfully.";
             return true;
         }
@@ -95,22 +99,21 @@ internal static class ProjectFolderService
         }
     }
 
-    public static string? GetSelectedProjectName(out string? error)
+    public static string? GetSelectedProjectName(out string? error) =>
+        GetSelectedProjectName(
+            LocalFileSystem.Instance, LocalSettingsStore.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(), out error);
+
+    internal static string? GetSelectedProjectName(
+        IFileSystem fileSystem, ISettingsStore settingsStore, string? workspaceFolder, out string? error)
     {
-        var workspaceFolder = SettingsWorkspaceContent.LoadWorkspaceFolderPath();
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder))
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder))
         {
             error = "Select a valid workspace before selecting a project.";
             return null;
         }
 
-        var settings = ApplicationData.Current.LocalSettings.Values;
-        var selectedWorkspace = settings.TryGetValue(SelectedProjectWorkspacePathKey, out var workspaceValue)
-            ? workspaceValue as string
-            : null;
-        var selectedProject = settings.TryGetValue(SelectedProjectNameKey, out var projectValue)
-            ? projectValue as string
-            : null;
+        var selectedWorkspace = settingsStore.GetString(SelectedProjectWorkspacePathKey);
+        var selectedProject = settingsStore.GetString(SelectedProjectNameKey);
 
         if (!string.Equals(selectedWorkspace, workspaceFolder, StringComparison.Ordinal) ||
             string.IsNullOrWhiteSpace(selectedProject))
@@ -120,9 +123,9 @@ internal static class ProjectFolderService
         }
 
         var projectFolder = System.IO.Path.Combine(workspaceFolder, "Projects", selectedProject);
-        if (!Directory.Exists(projectFolder))
+        if (!fileSystem.DirectoryExists(projectFolder))
         {
-            ClearSelectedProject();
+            ClearSelectedProject(settingsStore);
             error = $"The selected project '{selectedProject}' no longer exists.";
             return null;
         }
@@ -131,10 +134,15 @@ internal static class ProjectFolderService
         return selectedProject;
     }
 
-    public static bool TrySelectProject(string? projectName, out string message)
+    public static bool TrySelectProject(string? projectName, out string message) =>
+        TrySelectProject(
+            LocalFileSystem.Instance, LocalSettingsStore.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(),
+            projectName, out message);
+
+    internal static bool TrySelectProject(
+        IFileSystem fileSystem, ISettingsStore settingsStore, string? workspaceFolder, string? projectName, out string message)
     {
-        var workspaceFolder = SettingsWorkspaceContent.LoadWorkspaceFolderPath();
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder))
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder))
         {
             message = "Select a valid workspace before selecting a project.";
             return false;
@@ -146,7 +154,7 @@ internal static class ProjectFolderService
             return false;
         }
 
-        var availableProjects = GetProjectNames(out var error);
+        var availableProjects = GetProjectNames(fileSystem, workspaceFolder, out var error);
         if (error is not null)
         {
             message = error;
@@ -161,18 +169,18 @@ internal static class ProjectFolderService
             return false;
         }
 
-        var settings = ApplicationData.Current.LocalSettings.Values;
-        settings[SelectedProjectNameKey] = selectedProject;
-        settings[SelectedProjectWorkspacePathKey] = workspaceFolder;
+        settingsStore.SetString(SelectedProjectNameKey, selectedProject);
+        settingsStore.SetString(SelectedProjectWorkspacePathKey, workspaceFolder);
         message = $"Project '{selectedProject}' is now selected.";
         return true;
     }
 
-    public static void ClearSelectedProject()
+    public static void ClearSelectedProject() => ClearSelectedProject(LocalSettingsStore.Instance);
+
+    internal static void ClearSelectedProject(ISettingsStore settingsStore)
     {
-        var settings = ApplicationData.Current.LocalSettings.Values;
-        settings.Remove(SelectedProjectNameKey);
-        settings.Remove(SelectedProjectWorkspacePathKey);
+        settingsStore.Remove(SelectedProjectNameKey);
+        settingsStore.Remove(SelectedProjectWorkspacePathKey);
     }
 
     private static bool IsValidFolderName(string? name, out string message)

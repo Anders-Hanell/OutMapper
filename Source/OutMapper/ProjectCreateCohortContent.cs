@@ -4,7 +4,6 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Windows.Storage.Pickers;
 
 namespace OutMapper;
 
@@ -12,6 +11,7 @@ public sealed class ProjectCreateCohortContent : Border
 {
     internal static ProjectCreateCohortContent? Current { get; private set; }
 
+    private readonly IFilePicker _filePicker;
     private readonly TextBox _cohortNameInput;
     private readonly TextBlock _selectedFileLabel;
     private readonly StackPanel _linkedDatasetsPanel;
@@ -20,8 +20,14 @@ public sealed class ProjectCreateCohortContent : Border
     private string? _currentProjectName;
     private string? _selectedCsvFilePath;
 
-    public ProjectCreateCohortContent()
+    public ProjectCreateCohortContent() : this(new WindowsCsvFilePicker())
     {
+    }
+
+    internal ProjectCreateCohortContent(IFilePicker filePicker)
+    {
+        _filePicker = filePicker;
+
         Padding = new Thickness(24);
         Background = GetThemeBrush("SystemControlBackgroundChromeMediumLowBrush");
         CornerRadius = new CornerRadius(12);
@@ -142,24 +148,14 @@ public sealed class ProjectCreateCohortContent : Border
 
     private async void SelectCsvFile()
     {
-        var file = await PickCsvFileAsync();
-        if (file is null)
+        var path = await _filePicker.PickFileAsync();
+        if (path is null)
         {
             return;
         }
 
-        _selectedCsvFilePath = file.Path;
-        _selectedFileLabel.Text = file.Path;
-    }
-
-    private static async Task<Windows.Storage.StorageFile?> PickCsvFileAsync()
-    {
-        var picker = new FileOpenPicker
-        {
-            SuggestedStartLocation = PickerLocationId.Desktop
-        };
-        picker.FileTypeFilter.Add(".csv");
-        return await picker.PickSingleFileAsync();
+        _selectedCsvFilePath = path;
+        _selectedFileLabel.Text = path;
     }
 
     private void CreateCohort()

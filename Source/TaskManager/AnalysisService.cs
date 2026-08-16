@@ -25,54 +25,54 @@ internal static class AnalysisService
     private const double ColorScaleMaxValue = 0.1;
 
     internal static async Task<GenerateAnalysisGraphResponse> GenerateGraphAsync(
-        string? workspaceFolder, string projectName, string analysisName, TwoVariableAnalysisSettings settings)
+        IFileSystem fileSystem, string? workspaceFolder, string projectName, string analysisName, TwoVariableAnalysisSettings settings)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder))
         {
-            return PersistAndReturn(workspaceFolder, projectName, analysisName, settings, "No workspace was specified.", 0, 0, 0, 0);
+            return PersistAndReturn(fileSystem, workspaceFolder, projectName, analysisName, settings, "No workspace was specified.", 0, 0, 0, 0);
         }
 
         var cohortFolder = Path.Combine(
             workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Cohorts", settings.CohortName);
         var cohortDataFile = Path.Combine(cohortFolder, "Parsed data", "cohort.json");
 
-        if (!File.Exists(cohortDataFile))
+        if (!fileSystem.FileExists(cohortDataFile))
         {
             return PersistAndReturn(
-                workspaceFolder, projectName, analysisName, settings,
+                fileSystem, workspaceFolder, projectName, analysisName, settings,
                 $"Cohort '{settings.CohortName}' has not been parsed yet.", 0, 0, 0, 0);
         }
 
         Cohort cohort;
         try
         {
-            var cohortBytes = (await File.ReadAllBytesAsync(cohortDataFile)).ToList();
+            var cohortBytes = (await fileSystem.ReadAllBytesAsync(cohortDataFile)).ToList();
             switch (Cohort.FromByteArray(cohortBytes))
             {
                 case Success<Cohort> success:
                     cohort = success.Value;
                     break;
                 case Failure<Cohort> failure:
-                    return PersistAndReturn(workspaceFolder, projectName, analysisName, settings, failure.Error, 0, 0, 0, 0);
+                    return PersistAndReturn(fileSystem, workspaceFolder, projectName, analysisName, settings, failure.Error, 0, 0, 0, 0);
                 default:
-                    return PersistAndReturn(workspaceFolder, projectName, analysisName, settings, "Could not read cohort data.", 0, 0, 0, 0);
+                    return PersistAndReturn(fileSystem, workspaceFolder, projectName, analysisName, settings, "Could not read cohort data.", 0, 0, 0, 0);
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return PersistAndReturn(
-                workspaceFolder, projectName, analysisName, settings, $"Could not read cohort data: {exception.Message}", 0, 0, 0, 0);
+                fileSystem, workspaceFolder, projectName, analysisName, settings, $"Could not read cohort data: {exception.Message}", 0, 0, 0, 0);
         }
 
         var totalPatientCount = cohort.PatientIds.Length;
         var linkedDatasetsFile = Path.Combine(cohortFolder, "linked-datasets.json");
         var linkedDatasetNames = Array.Empty<string>();
-        if (File.Exists(linkedDatasetsFile))
+        if (fileSystem.FileExists(linkedDatasetsFile))
         {
             try
             {
                 linkedDatasetNames =
-                    JsonSerializer.Deserialize<string[]>(await File.ReadAllBytesAsync(linkedDatasetsFile))
+                    JsonSerializer.Deserialize<string[]>(await fileSystem.ReadAllBytesAsync(linkedDatasetsFile))
                     ?? Array.Empty<string>();
             }
             catch (JsonException)
@@ -84,7 +84,7 @@ internal static class AnalysisService
         if (linkedDatasetNames.Length == 0)
         {
             return PersistAndReturn(
-                workspaceFolder, projectName, analysisName, settings,
+                fileSystem, workspaceFolder, projectName, analysisName, settings,
                 $"Cohort '{settings.CohortName}' is not linked to any dataset.", totalPatientCount, 0, 0, 0);
         }
 
@@ -105,7 +105,7 @@ internal static class AnalysisService
             foreach (var datasetName in linkedDatasetNames)
             {
                 var candidateFile = Path.Combine(datasetsFolder, datasetName, "Parsed data", patientId + ".json");
-                if (File.Exists(candidateFile))
+                if (fileSystem.FileExists(candidateFile))
                 {
                     matchingFiles.Add(candidateFile);
                 }
@@ -132,7 +132,7 @@ internal static class AnalysisService
             List<byte> timeSeriesBytes;
             try
             {
-                timeSeriesBytes = (await File.ReadAllBytesAsync(matchingFiles[0])).ToList();
+                timeSeriesBytes = (await fileSystem.ReadAllBytesAsync(matchingFiles[0])).ToList();
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -168,7 +168,7 @@ internal static class AnalysisService
         if (double.IsPositiveInfinity(channelAMin) || double.IsPositiveInfinity(channelBMin))
         {
             return PersistAndReturn(
-                workspaceFolder, projectName, analysisName, settings,
+                fileSystem, workspaceFolder, projectName, analysisName, settings,
                 "No valid data was found for the configured channels among the cohort's matched patients.",
                 totalPatientCount, 0, unmatchedCount, ambiguousCount);
         }
@@ -228,12 +228,13 @@ internal static class AnalysisService
             channelBBinEdges.ToImmutableArray(),
             cellColors.ToImmutableArray());
 
-        WriteSummary(workspaceFolder, projectName, analysisName, response);
-        WriteGraphData(workspaceFolder, projectName, analysisName, response);
+        WriteSummary(fileSystem, workspaceFolder, projectName, analysisName, response);
+        WriteGraphData(fileSystem, workspaceFolder, projectName, analysisName, response);
         return response;
     }
 
-    internal static AnalysisResultResponse ReadPersistedResult(string? workspaceFolder, string projectName, string analysisName)
+    internal static AnalysisResultResponse ReadPersistedResult(
+        IFileSystem fileSystem, string? workspaceFolder, string projectName, string analysisName)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder))
         {
@@ -241,14 +242,14 @@ internal static class AnalysisService
         }
 
         var summaryFilePath = ResolveSummaryFilePath(workspaceFolder, projectName, analysisName);
-        if (!File.Exists(summaryFilePath))
+        if (!fileSystem.FileExists(summaryFilePath))
         {
             return NoGenerationHasRun(projectName, analysisName);
         }
 
         try
         {
-            var dto = JsonSerializer.Deserialize<GenerationResultSummaryDto>(File.ReadAllBytes(summaryFilePath));
+            var dto = JsonSerializer.Deserialize<GenerationResultSummaryDto>(fileSystem.ReadAllBytes(summaryFilePath));
             if (dto is null)
             {
                 return NoGenerationHasRun(projectName, analysisName);
@@ -296,7 +297,7 @@ internal static class AnalysisService
     }
 
     private static GenerateAnalysisGraphResponse PersistAndReturn(
-        string? workspaceFolder, string projectName, string analysisName, TwoVariableAnalysisSettings settings,
+        IFileSystem fileSystem, string? workspaceFolder, string projectName, string analysisName, TwoVariableAnalysisSettings settings,
         string errorMessage, int totalPatientCount, int matchedPatientCount, int unmatchedPatientCount, int ambiguousPatientCount)
     {
         var response = new GenerateAnalysisGraphResponse(
@@ -317,7 +318,7 @@ internal static class AnalysisService
 
         if (!string.IsNullOrWhiteSpace(workspaceFolder))
         {
-            WriteSummary(workspaceFolder, projectName, analysisName, response);
+            WriteSummary(fileSystem, workspaceFolder, projectName, analysisName, response);
         }
 
         return response;
@@ -332,7 +333,7 @@ internal static class AnalysisService
     }
 
     private static void WriteSummary(
-        string workspaceFolder, string projectName, string analysisName, GenerateAnalysisGraphResponse response)
+        IFileSystem fileSystem, string workspaceFolder, string projectName, string analysisName, GenerateAnalysisGraphResponse response)
     {
         try
         {
@@ -351,8 +352,8 @@ internal static class AnalysisService
             };
 
             var summaryFilePath = ResolveSummaryFilePath(workspaceFolder, projectName, analysisName);
-            Directory.CreateDirectory(Path.GetDirectoryName(summaryFilePath)!);
-            File.WriteAllBytes(summaryFilePath, JsonSerializer.SerializeToUtf8Bytes(dto));
+            fileSystem.CreateDirectory(Path.GetDirectoryName(summaryFilePath)!);
+            fileSystem.WriteAllBytes(summaryFilePath, JsonSerializer.SerializeToUtf8Bytes(dto));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -381,7 +382,7 @@ internal static class AnalysisService
     }
 
     private static void WriteGraphData(
-        string workspaceFolder, string projectName, string analysisName, GenerateAnalysisGraphResponse response)
+        IFileSystem fileSystem, string workspaceFolder, string projectName, string analysisName, GenerateAnalysisGraphResponse response)
     {
         try
         {
@@ -395,8 +396,8 @@ internal static class AnalysisService
             };
 
             var graphDataFilePath = ResolveGraphDataFilePath(workspaceFolder, projectName, analysisName);
-            Directory.CreateDirectory(Path.GetDirectoryName(graphDataFilePath)!);
-            File.WriteAllBytes(graphDataFilePath, JsonSerializer.SerializeToUtf8Bytes(dto));
+            fileSystem.CreateDirectory(Path.GetDirectoryName(graphDataFilePath)!);
+            fileSystem.WriteAllBytes(graphDataFilePath, JsonSerializer.SerializeToUtf8Bytes(dto));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -404,7 +405,8 @@ internal static class AnalysisService
         }
     }
 
-    internal static PersistedGraphData ReadPersistedGraphData(string? workspaceFolder, string projectName, string analysisName)
+    internal static PersistedGraphData ReadPersistedGraphData(
+        IFileSystem fileSystem, string? workspaceFolder, string projectName, string analysisName)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder))
         {
@@ -412,14 +414,14 @@ internal static class AnalysisService
         }
 
         var graphDataFilePath = ResolveGraphDataFilePath(workspaceFolder, projectName, analysisName);
-        if (!File.Exists(graphDataFilePath))
+        if (!fileSystem.FileExists(graphDataFilePath))
         {
             return default;
         }
 
         try
         {
-            var dto = JsonSerializer.Deserialize<GraphDataDto>(File.ReadAllBytes(graphDataFilePath));
+            var dto = JsonSerializer.Deserialize<GraphDataDto>(fileSystem.ReadAllBytes(graphDataFilePath));
             if (dto is null)
             {
                 return default;
@@ -439,26 +441,27 @@ internal static class AnalysisService
         }
     }
 
-    internal static ImmutableArray<string> ListAnalysesWithPersistedGraph(string? workspaceFolder, string projectName)
+    internal static ImmutableArray<string> ListAnalysesWithPersistedGraph(
+        IFileSystem fileSystem, string? workspaceFolder, string projectName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder) ||
             string.IsNullOrWhiteSpace(projectName))
         {
             return ImmutableArray<string>.Empty;
         }
 
         var analysesFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Analyses");
-        if (!Directory.Exists(analysesFolder))
+        if (!fileSystem.DirectoryExists(analysesFolder))
         {
             return ImmutableArray<string>.Empty;
         }
 
-        var analysisNames = Directory.GetFiles(analysesFolder, "*.oman", SearchOption.TopDirectoryOnly)
+        var analysisNames = fileSystem.GetFiles(analysesFolder, "*.oman")
             .Select(file => Path.GetFileNameWithoutExtension(file)!)
             .Where(name => !string.IsNullOrWhiteSpace(name));
 
         return analysisNames
-            .Where(name => ReadPersistedGraphData(workspaceFolder, projectName, name).Found)
+            .Where(name => ReadPersistedGraphData(fileSystem, workspaceFolder, projectName, name).Found)
             .ToImmutableArray();
     }
 

@@ -8,7 +8,7 @@ For the product purpose and domain context, see [`app_overview.md`](app_overview
 
 ## Solution structure
 
-Production projects (`OutMapper`, `TaskManager`, `Messages`, `DataStructures`, `Algorithms`) live under `Source/`; the test project (`OutMapper.Tests`) lives under `Tests/`. The `.sln` stays at the repository root.
+Production projects (`OutMapper`, `TaskManager`, `Messages`, `DataStructures`, `Algorithms`) live under `Source/`; the test projects (`OutMapper.Tests`, `TaskManager.Tests`, `Algorithms.Tests`, `DataStructures.Tests`) and the shared `TestSupport` project live under `Tests/`. The `.sln` stays at the repository root.
 
 ### `OutMapper`
 
@@ -27,6 +27,8 @@ The Uno Platform application and presentation layer. It currently owns:
 - The UI-side adapter to the task messaging system, via `OutMapper.GatewayToTaskManager`.
 
 `OutMapper` references both `TaskManager` and `Messages`.
+
+`OutMapper`'s own disk-touching services (`ProjectFolderService`, `AnalysisGraphPdfService`, `FigureGraphPdfService`) take `TaskManager.IFileSystem` as an explicit parameter rather than calling `System.IO` directly, mirroring `TaskManager`'s seam (see below); each has a public overload that defaults to `LocalFileSystem.Instance` for production callers, and an `internal` overload tests call with a fake. Reading and persisting settings (workspace path, selected project) goes through `OutMapper.ISettingsStore` (real implementation `LocalSettingsStore`, wrapping `ApplicationData.Current.LocalSettings`) rather than touching `ApplicationData` inline. Letting the user pick a folder or file goes through `OutMapper.IFolderPicker`/`IFilePicker` (real implementations `WindowsFolderPicker`/`WindowsCsvFilePicker`, wrapping `Windows.Storage.Pickers`) rather than constructing a picker inline. All four seams exist purely for testability — swapping the real implementation for a `Tests/TestSupport` fake in tests, never in production.
 
 ### `TaskManager`
 
@@ -47,6 +49,8 @@ A .NET class library that processes background requests. It currently owns:
 - Emission of dataset, cohort, analysis-list/creation, analysis-generation, figure-list/creation, figure-layout/size, and parse/generation-result responses.
 
 `TaskManager` references `Algorithms` and `Messages`, and does not reference the UI project. `DatasetParsingService`, `CohortParsingService`, `AnalysisService`, and `FigureService` (all internal) hold the orchestration logic for their respective entities; `TaskManagerService`'s parse-, generation-, and figure-related handlers delegate to them, mirroring the existing thin-handler shape used for dataset creation.
+
+All disk access in `TaskManagerService` and the four services above goes through `TaskManager.IFileSystem` (public interface, in `Source/TaskManager/IO/`), passed explicitly as a parameter rather than read from a static field — this is what lets tests exercise this logic against an in-memory fake with no shared mutable state, safe under parallel test execution, instead of touching real disk. `TaskManagerService`'s message handlers (the only production callers) pass the stateless `LocalFileSystem.Instance`; `TaskManager.Tests` passes `TestSupport.InMemoryFileSystem` instead. The underlying create/locate helpers (`CreateDataset`, `LocateDatasets`, `CreateCohort`, etc.) are `internal` specifically so tests can call them directly, bypassing the message channel and `TaskManagerService`'s static `_workspaceFolder` field entirely.
 
 `TaskManagerService`, `TaskManager.MessageRouter`, `DatasetParsingService`, `CohortParsingService`, `AnalysisService`, and `FigureService` are all `internal`; `TaskManager.GatewayToOutMapper` is the only public entry point, so the message-only boundary with `OutMapper` is enforced by the compiler rather than by convention alone.
 
@@ -103,9 +107,11 @@ The current contracts cover:
 
 Message contract type names do not carry a `Msg` suffix.
 
-### `OutMapper.Tests`
+### Test projects
 
-The xUnit test project. It references `OutMapper` and currently contains only the generated placeholder test; substantive behavior is not yet covered by automated tests.
+Four xUnit v3 (`FluentAssertions`, `coverlet.collector`) test projects, one per production project that has meaningful logic to test: `Algorithms.Tests`, `DataStructures.Tests`, `TaskManager.Tests`, and `OutMapper.Tests`. `Messages` has no test project — it's pure data contracts.
+
+`Tests/TestSupport` is a plain (non-test) library referenced by `TaskManager.Tests` and `OutMapper.Tests`. It holds the in-memory fakes for the seams described above: `InMemoryFileSystem` (`TaskManager.IFileSystem`), `InMemorySettingsStore` (`OutMapper.ISettingsStore`), and `FakeFolderPicker`/`FakeFilePicker` (`OutMapper.IFolderPicker`/`IFilePicker`). Each fake instance holds its own independent state, so tests using them are safe to run in parallel. `TaskManager` and `OutMapper` each declare `InternalsVisibleTo` for their respective test project (and, for `OutMapper`, for `TestSupport` too, since the fakes implement `OutMapper`'s `internal` seam interfaces).
 
 ## Runtime composition
 
@@ -269,7 +275,7 @@ No project metadata format, dataset schema, migration strategy, or transactional
 
 ## UI architecture
 
-The authored UI is primarily C# using WinUI/Uno controls and Uno C# Markup helpers. `MainPage` swaps `ContentControl.Content` values in response to button events rather than using route-based navigation for its inner panels.
+The authored UI is primarily C# using WinUI/Uno controls and Uno C# Markup helpers. `MainPage` swaps `ContentControl.Content` values in response to button events rather than using route-based navigation for its inner panels. The top-level swap is mediated by `NavigationManager`, which depends on the small `IContentHost`/`IRefreshable` interfaces rather than `ContentControl`/`ProjectsPanel` directly, so it can be unit tested without a live control tree (`MainPage` wires the real `ContentControlHost` adapter and `ProjectsPanel` — which implements `IRefreshable` — at construction time). `ProjectsPanel`'s own inner navigation (its `_contentArea` swap between dataset/cohort/analysis/figure sub-views) does not yet follow this pattern; see [Testing and validation](#testing-and-validation).
 
 The specialized content controls currently include:
 
@@ -299,15 +305,19 @@ Platform-specific behavior should be verified against the target frameworks and 
 
 ## Testing and validation
 
-The solution has an xUnit test project with FluentAssertions and coverage tooling configured, but it does not yet contain meaningful tests.
+Pure logic (`Algorithms`, `DataStructures`) is unit tested directly — no seams needed, since neither project does I/O.
 
-Current verification therefore depends primarily on:
+Logic that touches disk, app settings, or file/folder pickers is tested against the fakes in `Tests/TestSupport` (see [Test projects](#test-projects)) rather than real disk or `ApplicationData`: construct an `InMemoryFileSystem`/`InMemorySettingsStore`/fake picker, pass it to the `internal` testable overload of the method under test (e.g. `ProjectFolderService.TryCreateProject(fileSystem, workspaceFolder, name, out message)`, `TaskManagerService.CreateDataset(fileSystem, ...)`), and assert against the fake's state afterward. This keeps tests fast, deterministic, and safe to run in parallel, since each fake instance is independent and nothing touches the real filesystem or `ApplicationData`. New disk-, settings-, or picker-touching code should be threaded through the same seams rather than calling `System.IO`, `ApplicationData`, or `Windows.Storage.Pickers` directly, so it stays testable this way.
+
+PDF drawing logic is tested independently of file writing: `HeatmapDrawing.Draw` takes a plain `SKCanvas` and data, with no I/O, so it's tested by drawing onto an in-memory `SKSurface` and asserting on pixel colors. The PDF services' *file-writing* behavior (right path, non-empty `%PDF`-prefixed output) is tested separately, against `InMemoryFileSystem`. For visual inspection of a generated PDF's actual appearance — useful while the layout is still being iterated on, before a snapshot/approval-based regression system would be worth the cost — `Tests/OutMapper.Tests/SamplePdfGenerator.cs` is a skip-by-default helper that renders one representative PDF using the real `LocalFileSystem` to a scratch path; run it explicitly (`dotnet test --filter SamplePdfGenerator`, after temporarily removing its `Skip`) and read the resulting file directly (Claude's `Read` tool renders PDF pages).
+
+UI navigation/workflow logic is only testable this way once it's been pulled out of a live Uno control into a plain class — `NavigationManager` is the first (and so far only) example, depending on `IContentHost`/`IRefreshable` instead of a concrete `ContentControl`/`ProjectsPanel`, so `NavigationManagerTests` can construct it with fakes and assert on `ShowSettings()`/`ShowProjects()` without any Uno runtime. `ProjectsPanel` and the `Project*Content`/`Settings*Content` create-workflows still mix this kind of state into the live control and are not yet covered this way; apply the same extraction as they're next touched, rather than testing them by driving the real UI.
+
+Beyond automated tests, verification also depends on:
 
 - Compiling the complete solution.
 - Running the application with Hot Reload.
-- Inspecting and interacting with the live app through Uno App MCP when connected.
-
-Important filesystem validation, messaging, and state-synchronization behavior should receive automated coverage as those contracts stabilize.
+- Inspecting and interacting with the live app through Uno App MCP when connected — reserved for what the automated tests above can't cover (actual rendering, real platform picker dialogs, end-to-end Hot Reload behavior), not as a substitute for them.
 
 ## Known architectural limitations
 
@@ -316,8 +326,8 @@ Important filesystem validation, messaging, and state-synchronization behavior s
 - Project filesystem operations currently execute directly from the UI project instead of through `TaskManager`.
 - TaskManager has no intra-message parallel processing yet; CSV parsing (the first implemented candidate stage) runs one file at a time, and other heatmap stages have no implementation for bounded multiple-core work at all. `SettingsMultitaskingContent.GetMaxDegreeOfParallelism()` exists to bound that future work but is not yet called from anywhere.
 - Cancellation and progress control for long-running sequential messages are not yet designed. A dataset or cohort parse currently runs to completion (or first unexpected filesystem failure) with no way to cancel it mid-run.
-- UI composition, event handling, and navigation are concentrated in code rather than separated into view and state layers.
-- Automated test coverage is not yet established.
+- UI composition, event handling, and navigation are concentrated in code rather than separated into view and state layers, except for the top-level `NavigationManager`/`IContentHost` seam (see [UI architecture](#ui-architecture)); `ProjectsPanel` and the various content controls still mix UI construction with state and logic.
+- Automated test coverage exists for pure logic (`Algorithms`, `DataStructures`), for `TaskManager`'s and `OutMapper`'s disk-, settings-, and picker-touching services (via the `TestSupport` fakes), and for `NavigationManager` and `HeatmapDrawing` — but not yet for `ProjectsPanel`'s inner navigation, the individual `Project*Content`/`Settings*Content` controls, or the message-routing/gateway layer.
 - Cohort-to-dataset linkage (picked at cohort creation time, persisted in `linked-datasets.json`) is now used for patient-ID matching when generating an Analysis's graph (`AnalysisService`), but still isn't validated at cohort-creation or -linking time itself — see [Cohort](glossary.md#cohort) in the glossary for the intended behavior, and the "Generating an Analysis's graph" bullet under [Persistence and workspace layout](#persistence-and-workspace-layout) for what's implemented so far.
 - The Two-variable Analysis association grid has no per-cell minimum-observation filter (only a flat minimum-patient-count placeholder, `Algorithms.AssociationGrid.MinimumPatientsPerCell = 3`, not exposed as a setting), no confidence intervals/p-values, no smoothing, and no density/detrimental-zone/dichotomy/regression variants — the R reference implementation (`docs/r_code_reference.md`) has all of these; this is a deliberately minimal first pass.
 - The Figure PDF lays out its whole grid on a single page with no pagination, scaling each cell's heatmap to fit — for large grids (e.g. 8x8 or more) individual cells become small and their fills illegible. This is a deliberately minimal first pass.

@@ -59,4 +59,4 @@ Future project calculations may continue in the background when the user selects
 
 ## Architecture
 
-The solution contains the `OutMapper`, `TaskManager`, `Messages`, `DataStructures`, `Algorithms`, and `OutMapper.Tests` projects. Their current responsibilities and communication boundaries are documented in [`architecture.md`](architecture.md).
+The solution contains the `OutMapper`, `TaskManager`, `Messages`, `DataStructures`, and `Algorithms` projects, plus a test project per project with meaningful logic (see [`architecture.md`](architecture.md#test-projects)). Their current responsibilities and communication boundaries are documented in [`architecture.md`](architecture.md).
