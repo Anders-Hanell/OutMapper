@@ -11,7 +11,7 @@ public sealed class ProjectDatasetContent : Border
     private readonly ContentControl _innerContentArea;
     private readonly ProjectDatasetParseContent _parseContent;
     private readonly ProjectDatasetResultContent _resultContent;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentDatasetName;
 
     public ProjectDatasetContent()
@@ -72,7 +72,7 @@ public sealed class ProjectDatasetContent : Border
 
     public void SetDataset(string projectName, string datasetName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentDatasetName = datasetName;
         _nameLabel.Text = datasetName;
         _parseContent.SetDataset(projectName, datasetName);
@@ -83,7 +83,7 @@ public sealed class ProjectDatasetContent : Border
     internal void OnParseResultResponseReceived(ParseResultResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal) ||
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal) ||
             !string.Equals(response.DatasetName, _currentDatasetName, StringComparison.Ordinal))
         {
             return;

@@ -1,7 +1,7 @@
 namespace Messages;
 
 public sealed record CohortParseResultResponse(
-    string ProjectName,
+    string ProjectFolder,
     string CohortName,
     bool ParseHasRun,
     DateTime? ParsedAtUtc,

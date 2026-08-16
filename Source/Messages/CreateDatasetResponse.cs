@@ -1,3 +1,3 @@
 namespace Messages;
 
-public sealed record CreateDatasetResponse(string DatasetName, string? ProjectName, bool Success) : Message;
+public sealed record CreateDatasetResponse(string DatasetName, string? ProjectFolder, bool Success) : Message;

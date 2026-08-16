@@ -1,3 +1,3 @@
 namespace Messages;
 
-public sealed record CreateDatasetRequest(string DatasetName, string ProjectName, string? RawDataFolderPath) : Message;
+public sealed record CreateDatasetRequest(string DatasetName, string ProjectFolder, string? RawDataFolderPath) : Message;

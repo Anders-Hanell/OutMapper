@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Messages;
 
 public sealed record ParseResultResponse(
-    string ProjectName,
+    string ProjectFolder,
     string DatasetName,
     bool ParseHasRun,
     DateTime? ParsedAtUtc,

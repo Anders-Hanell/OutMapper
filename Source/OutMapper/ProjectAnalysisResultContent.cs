@@ -9,7 +9,7 @@ namespace OutMapper;
 public sealed class ProjectAnalysisResultContent : Border
 {
     private readonly TextBlock _summaryLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentAnalysisName;
 
     public ProjectAnalysisResultContent()
@@ -44,20 +44,20 @@ public sealed class ProjectAnalysisResultContent : Border
 
     public void SetAnalysis(string projectName, string analysisName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentAnalysisName = analysisName;
         Refresh();
     }
 
     public void Refresh()
     {
-        if (_currentProjectName is null || _currentAnalysisName is null)
+        if (_currentProjectFolder is null || _currentAnalysisName is null)
         {
             return;
         }
 
         _summaryLabel.Text = "Loading generation result...";
-        MessageRouter.SendMessage(new AnalysisResultRequest(_currentProjectName, _currentAnalysisName));
+        MessageRouter.SendMessage(new AnalysisResultRequest(_currentProjectFolder, _currentAnalysisName));
     }
 
     internal void OnAnalysisResultResponseReceived(AnalysisResultResponse response)

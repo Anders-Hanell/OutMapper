@@ -15,7 +15,7 @@ public sealed class ProjectCreateDatasetContent : Border
     private readonly TextBox _datasetNameInput;
     private readonly TextBlock _selectedFolderLabel;
     private readonly TextBlock _resultLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _selectedRawDataFolderPath;
 
     public ProjectCreateDatasetContent() : this(new WindowsFolderPicker())
@@ -92,7 +92,7 @@ public sealed class ProjectCreateDatasetContent : Border
 
     public void SetProject(string? projectName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _datasetNameInput.Text = string.Empty;
         _resultLabel.Text = string.Empty;
         _selectedRawDataFolderPath = null;
@@ -115,7 +115,7 @@ public sealed class ProjectCreateDatasetContent : Border
 
     private void CreateDataset()
     {
-        if (_currentProjectName is null)
+        if (_currentProjectFolder is null)
         {
             _resultLabel.Text = "No project selected.";
             return;
@@ -129,13 +129,13 @@ public sealed class ProjectCreateDatasetContent : Border
         }
 
         _resultLabel.Text = $"Creating '{datasetName}'...";
-        MessageRouter.SendMessage(new CreateDatasetRequest(datasetName, _currentProjectName, _selectedRawDataFolderPath));
+        MessageRouter.SendMessage(new CreateDatasetRequest(datasetName, _currentProjectFolder, _selectedRawDataFolderPath));
     }
 
     internal void OnCreateDatasetResponseReceived(CreateDatasetResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }

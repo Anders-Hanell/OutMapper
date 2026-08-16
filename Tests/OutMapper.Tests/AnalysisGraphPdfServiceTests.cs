@@ -11,12 +11,11 @@ public class AnalysisGraphPdfServiceTests
     public void GeneratePdf_writes_a_pdf_file_to_the_project_output_folder()
     {
         var fileSystem = new InMemoryFileSystem();
-        const string workspaceFolder = "/workspace";
-        const string projectName = "MyProject";
+        const string projectFolder = "/projects/MyProject";
         const string analysisName = "MyAnalysis";
 
         var graph = new GenerateAnalysisGraphResponse(
-            projectName,
+            projectFolder,
             analysisName,
             Success: true,
             ErrorMessage: null,
@@ -31,10 +30,10 @@ public class AnalysisGraphPdfServiceTests
             ChannelBBinEdges: ImmutableArray.Create(0.0, 1.0),
             CellColorsRowMajor: ImmutableArray.Create("#FF0000"));
 
-        var outputFile = AnalysisGraphPdfService.GeneratePdf(fileSystem, workspaceFolder, projectName, analysisName, graph);
+        var outputFile = AnalysisGraphPdfService.GeneratePdf(fileSystem, projectFolder, analysisName, graph);
 
         outputFile.Should().Be(Path.Combine(
-            workspaceFolder, "Projects", projectName, ProjectFolderService.ProjectOutputFolderName, analysisName + ".pdf"));
+            projectFolder, ProjectFolderService.ProjectOutputFolderName, analysisName + ".pdf"));
         fileSystem.FileExists(outputFile!).Should().BeTrue();
 
         var bytes = fileSystem.ReadAllBytes(outputFile!);
@@ -43,12 +42,12 @@ public class AnalysisGraphPdfServiceTests
     }
 
     [Fact]
-    public void GeneratePdf_returns_null_without_a_workspace()
+    public void GeneratePdf_returns_null_without_a_project_folder()
     {
         var fileSystem = new InMemoryFileSystem();
 
         var outputFile = AnalysisGraphPdfService.GeneratePdf(
-            fileSystem, workspaceFolder: null, "MyProject", "MyAnalysis",
+            fileSystem, projectFolder: null, "MyAnalysis",
             new GenerateAnalysisGraphResponse(
                 "MyProject", "MyAnalysis", Success: true, ErrorMessage: null, CohortName: "MyCohort",
                 ChannelAName: "A", ChannelBName: "B", TotalPatientCount: 0, MatchedPatientCount: 0,

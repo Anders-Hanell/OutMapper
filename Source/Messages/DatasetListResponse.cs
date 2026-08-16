@@ -2,4 +2,4 @@ using System.Collections.Immutable;
 
 namespace Messages;
 
-public sealed record DatasetListResponse(string? ProjectName, ImmutableArray<string> DatasetNames) : Message;
+public sealed record DatasetListResponse(string? ProjectFolder, ImmutableArray<string> DatasetNames) : Message;

@@ -15,32 +15,30 @@ internal static class CohortParsingService
     private const string ParseResultFileName = "parse-result.json";
 
     internal static async Task<CohortParseResultResponse> ParseCohortAsync(
-        IFileSystem fileSystem, string? workspaceFolder, string projectName, string cohortName, CohortParseParams parseParams)
+        IFileSystem fileSystem, string? projectFolder, string cohortName, CohortParseParams parseParams)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) ||
-            string.IsNullOrWhiteSpace(projectName) ||
-            string.IsNullOrWhiteSpace(cohortName))
+        if (string.IsNullOrWhiteSpace(projectFolder) || string.IsNullOrWhiteSpace(cohortName))
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, cohortName, "No workspace, project, or cohort was specified.");
+            return PersistAndReturn(fileSystem, projectFolder, cohortName, "No project or cohort was specified.");
         }
 
         var (importedRawDataFolder, parsedDataFolder, summaryFilePath) =
-            ResolveCohortPaths(workspaceFolder, projectName, cohortName);
+            ResolveCohortPaths(projectFolder, cohortName);
 
         if (!fileSystem.DirectoryExists(importedRawDataFolder))
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, cohortName, "The cohort's raw data folder was not found.");
+            return PersistAndReturn(fileSystem, projectFolder, cohortName, "The cohort's raw data folder was not found.");
         }
 
         var csvFiles = fileSystem.GetFiles(importedRawDataFolder, "*.csv");
         if (csvFiles.Length == 0)
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, cohortName, "No CSV file was found in 'Imported raw data'.");
+            return PersistAndReturn(fileSystem, projectFolder, cohortName, "No CSV file was found in 'Imported raw data'.");
         }
 
         if (csvFiles.Length > 1)
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, cohortName, "More than one CSV file was found in 'Imported raw data'; expected exactly one.");
+            return PersistAndReturn(fileSystem, projectFolder, cohortName, "More than one CSV file was found in 'Imported raw data'; expected exactly one.");
         }
 
         try
@@ -56,7 +54,7 @@ internal static class CohortParsingService
                     await fileSystem.WriteAllBytesAsync(outputPath, success.Value.ToByteArray().ToArray());
 
                     var response = new CohortParseResultResponse(
-                        projectName,
+                        projectFolder,
                         cohortName,
                         ParseHasRun: true,
                         ParsedAtUtc: DateTime.UtcNow,
@@ -68,32 +66,30 @@ internal static class CohortParsingService
                     return response;
 
                 case Failure<Cohort> failure:
-                    return PersistAndReturn(fileSystem, workspaceFolder, projectName, cohortName, failure.Error);
+                    return PersistAndReturn(fileSystem, projectFolder, cohortName, failure.Error);
 
                 default:
-                    return PersistAndReturn(fileSystem, workspaceFolder, projectName, cohortName, "Unknown parse result.");
+                    return PersistAndReturn(fileSystem, projectFolder, cohortName, "Unknown parse result.");
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, cohortName, $"Could not parse cohort: {exception.Message}");
+            return PersistAndReturn(fileSystem, projectFolder, cohortName, $"Could not parse cohort: {exception.Message}");
         }
     }
 
     internal static CohortParseResultResponse ReadPersistedParseResult(
-        IFileSystem fileSystem, string? workspaceFolder, string projectName, string cohortName)
+        IFileSystem fileSystem, string? projectFolder, string cohortName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) ||
-            string.IsNullOrWhiteSpace(projectName) ||
-            string.IsNullOrWhiteSpace(cohortName))
+        if (string.IsNullOrWhiteSpace(projectFolder) || string.IsNullOrWhiteSpace(cohortName))
         {
-            return NoParseHasRun(projectName, cohortName);
+            return NoParseHasRun(projectFolder ?? string.Empty, cohortName);
         }
 
-        var (_, _, summaryFilePath) = ResolveCohortPaths(workspaceFolder, projectName, cohortName);
+        var (_, _, summaryFilePath) = ResolveCohortPaths(projectFolder, cohortName);
         if (!fileSystem.FileExists(summaryFilePath))
         {
-            return NoParseHasRun(projectName, cohortName);
+            return NoParseHasRun(projectFolder, cohortName);
         }
 
         try
@@ -101,11 +97,11 @@ internal static class CohortParsingService
             var dto = JsonSerializer.Deserialize<ParseResultSummaryDto>(fileSystem.ReadAllBytes(summaryFilePath));
             if (dto is null)
             {
-                return NoParseHasRun(projectName, cohortName);
+                return NoParseHasRun(projectFolder, cohortName);
             }
 
             return new CohortParseResultResponse(
-                dto.ProjectName,
+                projectFolder,
                 dto.CohortName,
                 ParseHasRun: true,
                 ParsedAtUtc: dto.ParsedAtUtc,
@@ -115,15 +111,15 @@ internal static class CohortParsingService
         }
         catch (JsonException)
         {
-            return NoParseHasRun(projectName, cohortName);
+            return NoParseHasRun(projectFolder, cohortName);
         }
     }
 
     private static CohortParseResultResponse PersistAndReturn(
-        IFileSystem fileSystem, string? workspaceFolder, string? projectName, string? cohortName, string errorMessage)
+        IFileSystem fileSystem, string? projectFolder, string? cohortName, string errorMessage)
     {
         var response = new CohortParseResultResponse(
-            projectName ?? string.Empty,
+            projectFolder ?? string.Empty,
             cohortName ?? string.Empty,
             ParseHasRun: true,
             ParsedAtUtc: DateTime.UtcNow,
@@ -131,11 +127,11 @@ internal static class CohortParsingService
             ErrorMessage: errorMessage,
             PatientCount: 0);
 
-        if (!string.IsNullOrWhiteSpace(workspaceFolder) && !string.IsNullOrWhiteSpace(projectName) && !string.IsNullOrWhiteSpace(cohortName))
+        if (!string.IsNullOrWhiteSpace(projectFolder) && !string.IsNullOrWhiteSpace(cohortName))
         {
             try
             {
-                var (_, _, summaryFilePath) = ResolveCohortPaths(workspaceFolder, projectName, cohortName);
+                var (_, _, summaryFilePath) = ResolveCohortPaths(projectFolder, cohortName);
                 WriteSummary(fileSystem, summaryFilePath, response);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -147,10 +143,10 @@ internal static class CohortParsingService
         return response;
     }
 
-    private static CohortParseResultResponse NoParseHasRun(string projectName, string cohortName)
+    private static CohortParseResultResponse NoParseHasRun(string projectFolder, string cohortName)
     {
         return new CohortParseResultResponse(
-            projectName,
+            projectFolder,
             cohortName,
             ParseHasRun: false,
             ParsedAtUtc: null,
@@ -163,7 +159,6 @@ internal static class CohortParsingService
     {
         var dto = new ParseResultSummaryDto
         {
-            ProjectName = response.ProjectName,
             CohortName = response.CohortName,
             ParsedAtUtc = response.ParsedAtUtc ?? DateTime.UtcNow,
             Success = response.Success,
@@ -176,10 +171,9 @@ internal static class CohortParsingService
     }
 
     private static (string ImportedRawDataFolder, string ParsedDataFolder, string SummaryFilePath) ResolveCohortPaths(
-        string workspaceFolder, string projectName, string cohortName)
+        string projectFolder, string cohortName)
     {
-        var cohortFolder = Path.Combine(
-            workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Cohorts", cohortName);
+        var cohortFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Cohorts", cohortName);
 
         return (
             Path.Combine(cohortFolder, ImportedRawDataFolderName),
@@ -189,7 +183,6 @@ internal static class CohortParsingService
 
     private sealed class ParseResultSummaryDto
     {
-        public string ProjectName { get; set; } = "";
         public string CohortName { get; set; } = "";
         public DateTime ParsedAtUtc { get; set; }
         public bool Success { get; set; }

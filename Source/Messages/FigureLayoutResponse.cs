@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Messages;
 
 public sealed record FigureLayoutResponse(
-    string? ProjectName,
+    string? ProjectFolder,
     string? FigureName,
     bool LayoutExists,
     int RowCount,

@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Messages;
 
 public sealed record SaveFigureSizeResponse(
-    string? ProjectName,
+    string? ProjectFolder,
     string? FigureName,
     bool Success,
     string? ErrorMessage,

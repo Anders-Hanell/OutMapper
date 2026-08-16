@@ -1,3 +1,3 @@
 namespace Messages;
 
-public sealed record FigureListRequest(string ProjectName) : Message;
+public sealed record FigureListRequest(string ProjectFolder) : Message;

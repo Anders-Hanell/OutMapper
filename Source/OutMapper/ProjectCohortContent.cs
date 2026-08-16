@@ -11,7 +11,7 @@ public sealed class ProjectCohortContent : Border
     private readonly ContentControl _innerContentArea;
     private readonly ProjectCohortParseContent _parseContent;
     private readonly ProjectCohortResultContent _resultContent;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentCohortName;
 
     public ProjectCohortContent()
@@ -72,7 +72,7 @@ public sealed class ProjectCohortContent : Border
 
     public void SetCohort(string projectName, string cohortName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentCohortName = cohortName;
         _nameLabel.Text = cohortName;
         _parseContent.SetCohort(projectName, cohortName);
@@ -83,7 +83,7 @@ public sealed class ProjectCohortContent : Border
     internal void OnCohortParseResultResponseReceived(CohortParseResultResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal) ||
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal) ||
             !string.Equals(response.CohortName, _currentCohortName, StringComparison.Ordinal))
         {
             return;

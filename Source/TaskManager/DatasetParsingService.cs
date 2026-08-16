@@ -15,27 +15,25 @@ internal static class DatasetParsingService
     private const string ParseResultFileName = "parse-result.json";
 
     internal static async Task<ParseResultResponse> ParseDatasetAsync(
-        IFileSystem fileSystem, string? workspaceFolder, string projectName, string datasetName, CsvParseParams parseParams)
+        IFileSystem fileSystem, string? projectFolder, string datasetName, CsvParseParams parseParams)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) ||
-            string.IsNullOrWhiteSpace(projectName) ||
-            string.IsNullOrWhiteSpace(datasetName))
+        if (string.IsNullOrWhiteSpace(projectFolder) || string.IsNullOrWhiteSpace(datasetName))
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, datasetName, "No workspace, project, or dataset was specified.");
+            return PersistAndReturn(fileSystem, projectFolder, datasetName, "No project or dataset was specified.");
         }
 
         var (importedRawDataFolder, parsedDataFolder, summaryFilePath) =
-            ResolveDatasetPaths(workspaceFolder, projectName, datasetName);
+            ResolveDatasetPaths(projectFolder, datasetName);
 
         if (!fileSystem.DirectoryExists(importedRawDataFolder))
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, datasetName, "The dataset's raw data folder was not found.");
+            return PersistAndReturn(fileSystem, projectFolder, datasetName, "The dataset's raw data folder was not found.");
         }
 
         var csvFiles = fileSystem.GetFiles(importedRawDataFolder, "*.csv");
         if (csvFiles.Length == 0)
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, datasetName, "No CSV files were found in 'Imported raw data'.");
+            return PersistAndReturn(fileSystem, projectFolder, datasetName, "No CSV files were found in 'Imported raw data'.");
         }
 
         try
@@ -52,7 +50,7 @@ internal static class DatasetParsingService
 
             var successCount = outcomes.Count(outcome => outcome.Success);
             var response = new ParseResultResponse(
-                projectName,
+                projectFolder,
                 datasetName,
                 ParseHasRun: true,
                 ParsedAtUtc: DateTime.UtcNow,
@@ -67,24 +65,22 @@ internal static class DatasetParsingService
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return PersistAndReturn(fileSystem, workspaceFolder, projectName, datasetName, $"Could not parse dataset: {exception.Message}");
+            return PersistAndReturn(fileSystem, projectFolder, datasetName, $"Could not parse dataset: {exception.Message}");
         }
     }
 
     internal static ParseResultResponse ReadPersistedParseResult(
-        IFileSystem fileSystem, string? workspaceFolder, string projectName, string datasetName)
+        IFileSystem fileSystem, string? projectFolder, string datasetName)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) ||
-            string.IsNullOrWhiteSpace(projectName) ||
-            string.IsNullOrWhiteSpace(datasetName))
+        if (string.IsNullOrWhiteSpace(projectFolder) || string.IsNullOrWhiteSpace(datasetName))
         {
-            return NoParseHasRun(projectName, datasetName);
+            return NoParseHasRun(projectFolder ?? string.Empty, datasetName);
         }
 
-        var (_, _, summaryFilePath) = ResolveDatasetPaths(workspaceFolder, projectName, datasetName);
+        var (_, _, summaryFilePath) = ResolveDatasetPaths(projectFolder, datasetName);
         if (!fileSystem.FileExists(summaryFilePath))
         {
-            return NoParseHasRun(projectName, datasetName);
+            return NoParseHasRun(projectFolder, datasetName);
         }
 
         try
@@ -92,11 +88,11 @@ internal static class DatasetParsingService
             var dto = JsonSerializer.Deserialize<ParseResultSummaryDto>(fileSystem.ReadAllBytes(summaryFilePath));
             if (dto is null)
             {
-                return NoParseHasRun(projectName, datasetName);
+                return NoParseHasRun(projectFolder, datasetName);
             }
 
             return new ParseResultResponse(
-                dto.ProjectName,
+                projectFolder,
                 dto.DatasetName,
                 ParseHasRun: true,
                 ParsedAtUtc: dto.ParsedAtUtc,
@@ -110,7 +106,7 @@ internal static class DatasetParsingService
         }
         catch (JsonException)
         {
-            return NoParseHasRun(projectName, datasetName);
+            return NoParseHasRun(projectFolder, datasetName);
         }
     }
 
@@ -142,10 +138,10 @@ internal static class DatasetParsingService
     }
 
     private static ParseResultResponse PersistAndReturn(
-        IFileSystem fileSystem, string? workspaceFolder, string? projectName, string? datasetName, string overallError)
+        IFileSystem fileSystem, string? projectFolder, string? datasetName, string overallError)
     {
         var response = new ParseResultResponse(
-            projectName ?? string.Empty,
+            projectFolder ?? string.Empty,
             datasetName ?? string.Empty,
             ParseHasRun: true,
             ParsedAtUtc: DateTime.UtcNow,
@@ -155,11 +151,11 @@ internal static class DatasetParsingService
             FailureCount: 0,
             FileOutcomes: ImmutableArray<CsvFileParseOutcome>.Empty);
 
-        if (!string.IsNullOrWhiteSpace(workspaceFolder) && !string.IsNullOrWhiteSpace(projectName) && !string.IsNullOrWhiteSpace(datasetName))
+        if (!string.IsNullOrWhiteSpace(projectFolder) && !string.IsNullOrWhiteSpace(datasetName))
         {
             try
             {
-                var (_, _, summaryFilePath) = ResolveDatasetPaths(workspaceFolder, projectName, datasetName);
+                var (_, _, summaryFilePath) = ResolveDatasetPaths(projectFolder, datasetName);
                 WriteSummary(fileSystem, summaryFilePath, response);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -171,10 +167,10 @@ internal static class DatasetParsingService
         return response;
     }
 
-    private static ParseResultResponse NoParseHasRun(string projectName, string datasetName)
+    private static ParseResultResponse NoParseHasRun(string projectFolder, string datasetName)
     {
         return new ParseResultResponse(
-            projectName,
+            projectFolder,
             datasetName,
             ParseHasRun: false,
             ParsedAtUtc: null,
@@ -189,7 +185,6 @@ internal static class DatasetParsingService
     {
         var dto = new ParseResultSummaryDto
         {
-            ProjectName = response.ProjectName,
             DatasetName = response.DatasetName,
             ParsedAtUtc = response.ParsedAtUtc ?? DateTime.UtcNow,
             OverallError = response.OverallError,
@@ -210,10 +205,9 @@ internal static class DatasetParsingService
     }
 
     private static (string ImportedRawDataFolder, string ParsedDataFolder, string SummaryFilePath) ResolveDatasetPaths(
-        string workspaceFolder, string projectName, string datasetName)
+        string projectFolder, string datasetName)
     {
-        var datasetFolder = Path.Combine(
-            workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Datasets", datasetName);
+        var datasetFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Datasets", datasetName);
 
         return (
             Path.Combine(datasetFolder, ImportedRawDataFolderName),
@@ -223,7 +217,6 @@ internal static class DatasetParsingService
 
     private sealed class ParseResultSummaryDto
     {
-        public string ProjectName { get; set; } = "";
         public string DatasetName { get; set; } = "";
         public DateTime ParsedAtUtc { get; set; }
         public string? OverallError { get; set; }

@@ -11,7 +11,7 @@ public sealed class ProjectAnalysisContent : Border
     private readonly ContentControl _innerContentArea;
     private readonly ProjectAnalysisSettingsContent _settingsContent;
     private readonly ProjectAnalysisResultContent _resultContent;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentAnalysisName;
 
     public ProjectAnalysisContent()
@@ -72,7 +72,7 @@ public sealed class ProjectAnalysisContent : Border
 
     public void SetAnalysis(string projectName, string analysisName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentAnalysisName = analysisName;
         _nameLabel.Text = analysisName;
         _settingsContent.SetAnalysis(projectName, analysisName);
@@ -83,7 +83,7 @@ public sealed class ProjectAnalysisContent : Border
     internal void OnGenerateAnalysisGraphResponseReceived(GenerateAnalysisGraphResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal) ||
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal) ||
             !string.Equals(response.AnalysisName, _currentAnalysisName, StringComparison.Ordinal))
         {
             return;
@@ -95,7 +95,7 @@ public sealed class ProjectAnalysisContent : Border
     internal void OnAnalysisResultResponseReceived(AnalysisResultResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal) ||
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal) ||
             !string.Equals(response.AnalysisName, _currentAnalysisName, StringComparison.Ordinal))
         {
             return;

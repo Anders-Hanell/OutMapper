@@ -10,7 +10,7 @@ public sealed class ProjectCreateFigureContent : Border
 {
     private readonly TextBox _figureNameInput;
     private readonly TextBlock _resultLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
 
     public ProjectCreateFigureContent()
     {
@@ -63,14 +63,14 @@ public sealed class ProjectCreateFigureContent : Border
 
     public void SetProject(string? projectName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _figureNameInput.Text = string.Empty;
         _resultLabel.Text = string.Empty;
     }
 
     private void CreateFigure()
     {
-        if (_currentProjectName is null)
+        if (_currentProjectFolder is null)
         {
             _resultLabel.Text = "No project selected.";
             return;
@@ -84,13 +84,13 @@ public sealed class ProjectCreateFigureContent : Border
         }
 
         _resultLabel.Text = $"Creating '{figureName}'...";
-        MessageRouter.SendMessage(new CreateFigureRequest(figureName, _currentProjectName));
+        MessageRouter.SendMessage(new CreateFigureRequest(figureName, _currentProjectFolder));
     }
 
     internal void OnCreateFigureResponseReceived(CreateFigureResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }

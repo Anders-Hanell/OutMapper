@@ -1,5 +1,4 @@
 using System;
-using Messages;
 using Microsoft.Extensions.Logging;
 using Uno.Resizetizer;
 
@@ -60,8 +59,6 @@ public partial class App : Application
 
         MainWindow.SetWindowIcon();
 
-        SendInitialWorkspaceToTaskManager();
-
         // Ensure the current window is active
         MainWindow.Activate();
     }
@@ -74,15 +71,6 @@ public partial class App : Application
     void OnNavigationFailed(object sender, NavigationFailedEventArgs e)
     {
         throw new InvalidOperationException($"Failed to load {e.SourcePageType.FullName}: {e.Exception}");
-    }
-
-    private static void SendInitialWorkspaceToTaskManager()
-    {
-        var workspaceFolder = SettingsWorkspaceContent.LoadWorkspaceFolderPath();
-        if (!string.IsNullOrEmpty(workspaceFolder))
-        {
-            MessageRouter.SendMessage(new WorkspaceChanged(workspaceFolder));
-        }
     }
 
     /// <summary>

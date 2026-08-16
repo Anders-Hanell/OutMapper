@@ -26,7 +26,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
     private readonly Button _createCohortButton;
     private readonly Button _createAnalysisButton;
     private readonly Button _createFigureButton;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private ImmutableArray<string> _datasetNames = ImmutableArray<string>.Empty;
     private ImmutableArray<string> _cohortNames = ImmutableArray<string>.Empty;
     private ImmutableArray<string> _analysisNames = ImmutableArray<string>.Empty;
@@ -114,24 +114,25 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
 
     public void Refresh()
     {
-        var selectedProject = ProjectFolderService.GetSelectedProjectName(out var error);
-        _currentProjectName = selectedProject;
+        var selectedProjectFolder = ProjectFolderService.GetCurrentProjectFolder();
+        var selectedProjectName = ProjectFolderService.GetCurrentProjectName();
+        _currentProjectFolder = selectedProjectFolder;
 
-        _projectNameLabel.Text = error ?? (selectedProject is null
+        _projectNameLabel.Text = selectedProjectName is null
             ? "No project selected."
-            : $"Current project: {selectedProject}");
+            : $"Current project: {selectedProjectName}";
 
-        _createDatasetContent.SetProject(selectedProject);
-        _createCohortContent.SetProject(selectedProject);
-        _createAnalysisContent.SetProject(selectedProject);
-        _createFigureContent.SetProject(selectedProject);
+        _createDatasetContent.SetProject(selectedProjectFolder);
+        _createCohortContent.SetProject(selectedProjectFolder);
+        _createAnalysisContent.SetProject(selectedProjectFolder);
+        _createFigureContent.SetProject(selectedProjectFolder);
         _contentArea.Content = _placeholderContent;
         _datasetNames = ImmutableArray<string>.Empty;
         _cohortNames = ImmutableArray<string>.Empty;
         _analysisNames = ImmutableArray<string>.Empty;
         _figureNames = ImmutableArray<string>.Empty;
 
-        if (selectedProject is null)
+        if (selectedProjectFolder is null)
         {
             _placeholderLabel.Text = "No project selected.";
             RebuildNavigationButtons();
@@ -140,16 +141,16 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
 
         _placeholderLabel.Text = "Loading datasets, cohorts, and analyses...";
         RebuildNavigationButtons();
-        MessageRouter.SendMessage(new DatasetListRequest(selectedProject));
-        MessageRouter.SendMessage(new CohortListRequest(selectedProject));
-        MessageRouter.SendMessage(new AnalysisListRequest(selectedProject));
-        MessageRouter.SendMessage(new FigureListRequest(selectedProject));
+        MessageRouter.SendMessage(new DatasetListRequest(selectedProjectFolder));
+        MessageRouter.SendMessage(new CohortListRequest(selectedProjectFolder));
+        MessageRouter.SendMessage(new AnalysisListRequest(selectedProjectFolder));
+        MessageRouter.SendMessage(new FigureListRequest(selectedProjectFolder));
     }
 
     internal void OnDatasetListResponseReceived(DatasetListResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -165,7 +166,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
     internal void OnCreateDatasetResponseReceived(CreateDatasetResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -174,14 +175,14 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
 
         if (response.Success)
         {
-            MessageRouter.SendMessage(new DatasetListRequest(response.ProjectName!));
+            MessageRouter.SendMessage(new DatasetListRequest(response.ProjectFolder!));
         }
     }
 
     internal void OnCohortListResponseReceived(CohortListResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -193,7 +194,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
     internal void OnCreateCohortResponseReceived(CreateCohortResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -202,14 +203,14 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
 
         if (response.Success)
         {
-            MessageRouter.SendMessage(new CohortListRequest(response.ProjectName!));
+            MessageRouter.SendMessage(new CohortListRequest(response.ProjectFolder!));
         }
     }
 
     internal void OnAnalysisListResponseReceived(AnalysisListResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -221,7 +222,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
     internal void OnCreateAnalysisResponseReceived(CreateAnalysisResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -230,14 +231,14 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
 
         if (response.Success)
         {
-            MessageRouter.SendMessage(new AnalysisListRequest(response.ProjectName!));
+            MessageRouter.SendMessage(new AnalysisListRequest(response.ProjectFolder!));
         }
     }
 
     internal void OnFigureListResponseReceived(FigureListResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -249,7 +250,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
     internal void OnCreateFigureResponseReceived(CreateFigureResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -258,7 +259,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
 
         if (response.Success)
         {
-            MessageRouter.SendMessage(new FigureListRequest(response.ProjectName!));
+            MessageRouter.SendMessage(new FigureListRequest(response.ProjectFolder!));
         }
     }
 
@@ -274,7 +275,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
             var datasetButton = new Button { Content = datasetName };
             datasetButton.Click += (_, _) =>
             {
-                _datasetContent.SetDataset(_currentProjectName!, datasetName);
+                _datasetContent.SetDataset(_currentProjectFolder!, datasetName);
                 _contentArea.Content = _datasetContent;
             };
             _navigationPanel.Children.Add(datasetButton);
@@ -288,7 +289,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
             var cohortButton = new Button { Content = cohortName };
             cohortButton.Click += (_, _) =>
             {
-                _cohortContent.SetCohort(_currentProjectName!, cohortName);
+                _cohortContent.SetCohort(_currentProjectFolder!, cohortName);
                 _contentArea.Content = _cohortContent;
             };
             _navigationPanel.Children.Add(cohortButton);
@@ -302,7 +303,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
             var analysisButton = new Button { Content = analysisName };
             analysisButton.Click += (_, _) =>
             {
-                _analysisContent.SetAnalysis(_currentProjectName!, analysisName);
+                _analysisContent.SetAnalysis(_currentProjectFolder!, analysisName);
                 _contentArea.Content = _analysisContent;
             };
             _navigationPanel.Children.Add(analysisButton);
@@ -316,7 +317,7 @@ internal sealed class ProjectsPanel : Grid, IRefreshable
             var figureButton = new Button { Content = figureName };
             figureButton.Click += (_, _) =>
             {
-                _figureContent.SetFigure(_currentProjectName!, figureName);
+                _figureContent.SetFigure(_currentProjectFolder!, figureName);
                 _contentArea.Content = _figureContent;
             };
             _navigationPanel.Children.Add(figureButton);

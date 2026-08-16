@@ -11,7 +11,7 @@ public sealed class ProjectFigureSizeContent : Border
     private readonly TextBox _rowCountInput;
     private readonly TextBox _colCountInput;
     private readonly TextBlock _statusLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentFigureName;
 
     public ProjectFigureSizeContent()
@@ -74,7 +74,7 @@ public sealed class ProjectFigureSizeContent : Border
 
     public void SetFigure(string projectName, string figureName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentFigureName = figureName;
         _statusLabel.Text = string.Empty;
         _rowCountInput.Text = string.Empty;
@@ -96,7 +96,7 @@ public sealed class ProjectFigureSizeContent : Border
 
     private void SaveSize()
     {
-        if (_currentProjectName is null || _currentFigureName is null)
+        if (_currentProjectFolder is null || _currentFigureName is null)
         {
             _statusLabel.Text = "No figure selected.";
             return;
@@ -115,7 +115,7 @@ public sealed class ProjectFigureSizeContent : Border
         }
 
         _statusLabel.Text = "Saving size...";
-        MessageRouter.SendMessage(new SaveFigureSizeRequest(_currentProjectName, _currentFigureName, rowCount, colCount));
+        MessageRouter.SendMessage(new SaveFigureSizeRequest(_currentProjectFolder, _currentFigureName, rowCount, colCount));
     }
 
     internal void OnSaveFigureSizeResponseReceived(SaveFigureSizeResponse response)

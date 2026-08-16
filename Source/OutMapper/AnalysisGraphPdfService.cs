@@ -13,13 +13,13 @@ internal static class AnalysisGraphPdfService
     /// colored heatmap and writes it to the project's Output folder as "&lt;analysisName&gt;.pdf".
     /// Returns the written file path, or null if it could not be written.
     /// </summary>
-    public static string? GeneratePdf(string projectName, string analysisName, GenerateAnalysisGraphResponse graph) =>
-        GeneratePdf(LocalFileSystem.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(), projectName, analysisName, graph);
+    public static string? GeneratePdf(string projectFolder, string analysisName, GenerateAnalysisGraphResponse graph) =>
+        GeneratePdf(LocalFileSystem.Instance, projectFolder, analysisName, graph);
 
     internal static string? GeneratePdf(
-        IFileSystem fileSystem, string? workspaceFolder, string projectName, string analysisName, GenerateAnalysisGraphResponse graph)
+        IFileSystem fileSystem, string? projectFolder, string analysisName, GenerateAnalysisGraphResponse graph)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder))
+        if (string.IsNullOrWhiteSpace(projectFolder))
         {
             return null;
         }
@@ -31,7 +31,7 @@ internal static class AnalysisGraphPdfService
             return null;
         }
 
-        var outputFolder = Path.Combine(workspaceFolder, "Projects", projectName, ProjectFolderService.ProjectOutputFolderName);
+        var outputFolder = Path.Combine(projectFolder, ProjectFolderService.ProjectOutputFolderName);
         fileSystem.CreateDirectory(outputFolder);
         var outputFile = Path.Combine(outputFolder, analysisName + ".pdf");
 

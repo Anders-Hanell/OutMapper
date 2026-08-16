@@ -1,3 +1,3 @@
 namespace Messages;
 
-public sealed record AnalysesWithGraphListRequest(string ProjectName) : Message;
+public sealed record AnalysesWithGraphListRequest(string ProjectFolder) : Message;

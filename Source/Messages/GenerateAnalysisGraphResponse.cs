@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Messages;
 
 public sealed record GenerateAnalysisGraphResponse(
-    string ProjectName,
+    string ProjectFolder,
     string AnalysisName,
     bool Success,
     string? ErrorMessage,

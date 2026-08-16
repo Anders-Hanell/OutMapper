@@ -15,7 +15,7 @@ public sealed class ProjectDatasetParseContent : Border
     private readonly TextBox _timeColumnHeaderInput;
     private readonly TextBox _timestampFormatInput;
     private readonly TextBlock _statusLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentDatasetName;
 
     public ProjectDatasetParseContent()
@@ -105,14 +105,14 @@ public sealed class ProjectDatasetParseContent : Border
 
     public void SetDataset(string projectName, string datasetName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentDatasetName = datasetName;
         _statusLabel.Text = string.Empty;
     }
 
     private void StartParse()
     {
-        if (_currentProjectName is null || _currentDatasetName is null)
+        if (_currentProjectFolder is null || _currentDatasetName is null)
         {
             _statusLabel.Text = "No dataset selected.";
             return;
@@ -130,7 +130,7 @@ public sealed class ProjectDatasetParseContent : Border
                 break;
             case Success<CsvParseParams> success:
                 _statusLabel.Text = "Parsing...";
-                MessageRouter.SendMessage(new ParseDatasetRequest(_currentProjectName, _currentDatasetName, success.Value));
+                MessageRouter.SendMessage(new ParseDatasetRequest(_currentProjectFolder, _currentDatasetName, success.Value));
                 break;
         }
     }

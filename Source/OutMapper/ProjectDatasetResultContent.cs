@@ -10,7 +10,7 @@ public sealed class ProjectDatasetResultContent : Border
 {
     private readonly TextBlock _summaryLabel;
     private readonly StackPanel _fileOutcomesPanel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentDatasetName;
 
     public ProjectDatasetResultContent()
@@ -52,21 +52,21 @@ public sealed class ProjectDatasetResultContent : Border
 
     public void SetDataset(string projectName, string datasetName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentDatasetName = datasetName;
         Refresh();
     }
 
     public void Refresh()
     {
-        if (_currentProjectName is null || _currentDatasetName is null)
+        if (_currentProjectFolder is null || _currentDatasetName is null)
         {
             return;
         }
 
         _summaryLabel.Text = "Loading parse result...";
         _fileOutcomesPanel.Children.Clear();
-        MessageRouter.SendMessage(new ParseResultRequest(_currentProjectName, _currentDatasetName));
+        MessageRouter.SendMessage(new ParseResultRequest(_currentProjectFolder, _currentDatasetName));
     }
 
     internal void OnParseResultResponseReceived(ParseResultResponse response)

@@ -5,8 +5,7 @@ namespace OutMapper;
 
 internal static class ProjectFolderService
 {
-    private const string SelectedProjectNameKey = "SelectedProjectName";
-    private const string SelectedProjectWorkspacePathKey = "SelectedProjectWorkspacePath";
+    private const string CurrentProjectFolderKey = "CurrentProjectFolder";
     internal const string InternalFilesFolderName = "OutMapper_InternalFiles";
     internal const string ProjectOutputFolderName = "OutMapper_ProjectOutput";
 
@@ -23,49 +22,44 @@ internal static class ProjectFolderService
         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
     };
 
-    public static string[] GetProjectNames(out string? error) =>
-        GetProjectNames(LocalFileSystem.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(), out error);
+    public static string? GetCurrentProjectFolder() =>
+        GetCurrentProjectFolder(LocalFileSystem.Instance, LocalSettingsStore.Instance);
 
-    internal static string[] GetProjectNames(IFileSystem fileSystem, string? workspaceFolder, out string? error)
+    internal static string? GetCurrentProjectFolder(IFileSystem fileSystem, ISettingsStore settingsStore)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder))
+        var projectFolder = settingsStore.GetString(CurrentProjectFolderKey);
+        if (string.IsNullOrWhiteSpace(projectFolder))
         {
-            error = "Select a valid workspace before viewing projects.";
-            return [];
+            return null;
         }
 
-        var projectsFolder = System.IO.Path.Combine(workspaceFolder, "Projects");
-        if (!fileSystem.DirectoryExists(projectsFolder))
+        if (!fileSystem.DirectoryExists(projectFolder))
         {
-            error = null;
-            return [];
+            settingsStore.Remove(CurrentProjectFolderKey);
+            return null;
         }
 
-        try
-        {
-            error = null;
-            return fileSystem.GetDirectories(projectsFolder)
-                .Select(System.IO.Path.GetFileName)
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Cast<string>()
-                .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
-                .ToArray();
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            error = $"Unable to read projects: {exception.Message}";
-            return [];
-        }
+        return projectFolder;
     }
 
-    public static bool TryCreateProject(string? proposedName, out string message) =>
-        TryCreateProject(LocalFileSystem.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(), proposedName, out message);
+    public static string? GetCurrentProjectName() =>
+        GetCurrentProjectName(LocalFileSystem.Instance, LocalSettingsStore.Instance);
 
-    internal static bool TryCreateProject(IFileSystem fileSystem, string? workspaceFolder, string? proposedName, out string message)
+    internal static string? GetCurrentProjectName(IFileSystem fileSystem, ISettingsStore settingsStore)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder))
+        var projectFolder = GetCurrentProjectFolder(fileSystem, settingsStore);
+        return projectFolder is null ? null : System.IO.Path.GetFileName(projectFolder);
+    }
+
+    public static bool TryCreateProject(string? parentFolder, string? proposedName, out string message) =>
+        TryCreateProject(LocalFileSystem.Instance, LocalSettingsStore.Instance, parentFolder, proposedName, out message);
+
+    internal static bool TryCreateProject(
+        IFileSystem fileSystem, ISettingsStore settingsStore, string? parentFolder, string? proposedName, out string message)
+    {
+        if (string.IsNullOrWhiteSpace(parentFolder) || !fileSystem.DirectoryExists(parentFolder))
         {
-            message = "Select a valid workspace before creating a project.";
+            message = "Select a valid location before creating a project.";
             return false;
         }
 
@@ -75,20 +69,22 @@ internal static class ProjectFolderService
             return false;
         }
 
-        var projectsFolder = System.IO.Path.Combine(workspaceFolder, "Projects");
-        var projectFolder = System.IO.Path.Combine(projectsFolder, projectName!);
+        var projectFolder = System.IO.Path.Combine(parentFolder, projectName!);
 
         try
         {
             if (fileSystem.DirectoryExists(projectFolder))
             {
-                message = $"A project named '{projectName}' already exists.";
+                message = $"A project named '{projectName}' already exists at that location.";
                 return false;
             }
 
             fileSystem.CreateDirectory(projectFolder);
             fileSystem.CreateDirectory(System.IO.Path.Combine(projectFolder, InternalFilesFolderName));
             fileSystem.CreateDirectory(System.IO.Path.Combine(projectFolder, ProjectOutputFolderName));
+
+            SetCurrentProject(settingsStore, projectFolder);
+
             message = $"Project '{projectName}' was created successfully.";
             return true;
         }
@@ -99,88 +95,40 @@ internal static class ProjectFolderService
         }
     }
 
-    public static string? GetSelectedProjectName(out string? error) =>
-        GetSelectedProjectName(
-            LocalFileSystem.Instance, LocalSettingsStore.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(), out error);
+    public static bool TryOpenProject(string? folder, out string message) =>
+        TryOpenProject(LocalFileSystem.Instance, LocalSettingsStore.Instance, folder, out message);
 
-    internal static string? GetSelectedProjectName(
-        IFileSystem fileSystem, ISettingsStore settingsStore, string? workspaceFolder, out string? error)
+    internal static bool TryOpenProject(IFileSystem fileSystem, ISettingsStore settingsStore, string? folder, out string message)
     {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder))
+        if (string.IsNullOrWhiteSpace(folder) || !fileSystem.DirectoryExists(folder))
         {
-            error = "Select a valid workspace before selecting a project.";
-            return null;
-        }
-
-        var selectedWorkspace = settingsStore.GetString(SelectedProjectWorkspacePathKey);
-        var selectedProject = settingsStore.GetString(SelectedProjectNameKey);
-
-        if (!string.Equals(selectedWorkspace, workspaceFolder, StringComparison.Ordinal) ||
-            string.IsNullOrWhiteSpace(selectedProject))
-        {
-            error = null;
-            return null;
-        }
-
-        var projectFolder = System.IO.Path.Combine(workspaceFolder, "Projects", selectedProject);
-        if (!fileSystem.DirectoryExists(projectFolder))
-        {
-            ClearSelectedProject(settingsStore);
-            error = $"The selected project '{selectedProject}' no longer exists.";
-            return null;
-        }
-
-        error = null;
-        return selectedProject;
-    }
-
-    public static bool TrySelectProject(string? projectName, out string message) =>
-        TrySelectProject(
-            LocalFileSystem.Instance, LocalSettingsStore.Instance, SettingsWorkspaceContent.LoadWorkspaceFolderPath(),
-            projectName, out message);
-
-    internal static bool TrySelectProject(
-        IFileSystem fileSystem, ISettingsStore settingsStore, string? workspaceFolder, string? projectName, out string message)
-    {
-        if (string.IsNullOrWhiteSpace(workspaceFolder) || !fileSystem.DirectoryExists(workspaceFolder))
-        {
-            message = "Select a valid workspace before selecting a project.";
+            message = "Select a valid project folder.";
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(projectName))
+        if (!fileSystem.DirectoryExists(System.IO.Path.Combine(folder, InternalFilesFolderName)))
         {
-            message = "Choose a project.";
+            message = "That folder doesn't look like an OutMapper project.";
             return false;
         }
 
-        var availableProjects = GetProjectNames(fileSystem, workspaceFolder, out var error);
-        if (error is not null)
-        {
-            message = error;
-            return false;
-        }
+        SetCurrentProject(settingsStore, folder);
 
-        var selectedProject = availableProjects.FirstOrDefault(
-            name => string.Equals(name, projectName, StringComparison.Ordinal));
-        if (selectedProject is null)
-        {
-            message = $"The project '{projectName}' does not exist in the current workspace.";
-            return false;
-        }
-
-        settingsStore.SetString(SelectedProjectNameKey, selectedProject);
-        settingsStore.SetString(SelectedProjectWorkspacePathKey, workspaceFolder);
-        message = $"Project '{selectedProject}' is now selected.";
+        message = $"Project '{System.IO.Path.GetFileName(folder)}' is now open.";
         return true;
     }
 
-    public static void ClearSelectedProject() => ClearSelectedProject(LocalSettingsStore.Instance);
+    public static void ClearCurrentProject() => ClearCurrentProject(LocalSettingsStore.Instance);
 
-    internal static void ClearSelectedProject(ISettingsStore settingsStore)
+    internal static void ClearCurrentProject(ISettingsStore settingsStore)
     {
-        settingsStore.Remove(SelectedProjectNameKey);
-        settingsStore.Remove(SelectedProjectWorkspacePathKey);
+        settingsStore.Remove(CurrentProjectFolderKey);
+    }
+
+    private static void SetCurrentProject(ISettingsStore settingsStore, string projectFolder)
+    {
+        settingsStore.SetString(CurrentProjectFolderKey, projectFolder);
+        RecentProjectsService.AddOrPromote(settingsStore, projectFolder);
     }
 
     private static bool IsValidFolderName(string? name, out string message)

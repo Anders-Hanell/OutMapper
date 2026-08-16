@@ -19,7 +19,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
     private readonly TextBox _channelBNameInput;
     private readonly TextBox _channelBBinSizeInput;
     private readonly TextBlock _statusLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentAnalysisName;
 
     public ProjectAnalysisSettingsContent()
@@ -113,7 +113,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
 
     public void SetAnalysis(string projectName, string analysisName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentAnalysisName = analysisName;
         _statusLabel.Text = string.Empty;
         _cohortComboBox.Items.Clear();
@@ -125,7 +125,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
     internal void OnCohortListResponseReceived(CohortListResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -142,7 +142,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
 
     private void GenerateGraph()
     {
-        if (_currentProjectName is null || _currentAnalysisName is null)
+        if (_currentProjectFolder is null || _currentAnalysisName is null)
         {
             _statusLabel.Text = "No analysis selected.";
             return;
@@ -171,7 +171,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
                 break;
             case Success<TwoVariableAnalysisSettings> success:
                 _statusLabel.Text = "Generating graph...";
-                MessageRouter.SendMessage(new GenerateAnalysisGraphRequest(_currentProjectName, _currentAnalysisName, success.Value));
+                MessageRouter.SendMessage(new GenerateAnalysisGraphRequest(_currentProjectFolder, _currentAnalysisName, success.Value));
                 break;
         }
     }
@@ -184,7 +184,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
             return;
         }
 
-        var outputPath = AnalysisGraphPdfService.GeneratePdf(response.ProjectName, response.AnalysisName, response);
+        var outputPath = AnalysisGraphPdfService.GeneratePdf(response.ProjectFolder, response.AnalysisName, response);
 
         _statusLabel.Text = outputPath is null
             ? $"Generated with {response.MatchedPatientCount} of {response.TotalPatientCount} patient(s) matched, but the PDF could not be written."

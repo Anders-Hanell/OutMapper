@@ -9,7 +9,7 @@ namespace OutMapper;
 public sealed class ProjectCohortResultContent : Border
 {
     private readonly TextBlock _summaryLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentCohortName;
 
     public ProjectCohortResultContent()
@@ -44,20 +44,20 @@ public sealed class ProjectCohortResultContent : Border
 
     public void SetCohort(string projectName, string cohortName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentCohortName = cohortName;
         Refresh();
     }
 
     public void Refresh()
     {
-        if (_currentProjectName is null || _currentCohortName is null)
+        if (_currentProjectFolder is null || _currentCohortName is null)
         {
             return;
         }
 
         _summaryLabel.Text = "Loading parse result...";
-        MessageRouter.SendMessage(new CohortParseResultRequest(_currentProjectName, _currentCohortName));
+        MessageRouter.SendMessage(new CohortParseResultRequest(_currentProjectFolder, _currentCohortName));
     }
 
     internal void OnCohortParseResultResponseReceived(CohortParseResultResponse response)

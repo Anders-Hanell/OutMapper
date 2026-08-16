@@ -10,7 +10,7 @@ public sealed class ProjectCreateAnalysisContent : Border
 {
     private readonly TextBox _analysisNameInput;
     private readonly TextBlock _resultLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
 
     public ProjectCreateAnalysisContent()
     {
@@ -63,14 +63,14 @@ public sealed class ProjectCreateAnalysisContent : Border
 
     public void SetProject(string? projectName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _analysisNameInput.Text = string.Empty;
         _resultLabel.Text = string.Empty;
     }
 
     private void CreateAnalysis()
     {
-        if (_currentProjectName is null)
+        if (_currentProjectFolder is null)
         {
             _resultLabel.Text = "No project selected.";
             return;
@@ -84,13 +84,13 @@ public sealed class ProjectCreateAnalysisContent : Border
         }
 
         _resultLabel.Text = $"Creating '{analysisName}'...";
-        MessageRouter.SendMessage(new CreateAnalysisRequest(analysisName, _currentProjectName));
+        MessageRouter.SendMessage(new CreateAnalysisRequest(analysisName, _currentProjectFolder));
     }
 
     internal void OnCreateAnalysisResponseReceived(CreateAnalysisResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }

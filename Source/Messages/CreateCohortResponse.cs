@@ -1,3 +1,3 @@
 namespace Messages;
 
-public sealed record CreateCohortResponse(string CohortName, string? ProjectName, bool Success) : Message;
+public sealed record CreateCohortResponse(string CohortName, string? ProjectFolder, bool Success) : Message;

@@ -20,9 +20,7 @@ internal sealed class SettingsPanel : Grid
             }
         };
 
-        var settingsWorkspaceContent = new SettingsWorkspaceContent();
-        var settingsProjectsContent = new SettingsProjectsContent();
-        var settingsSelectProjectContent = new SettingsSelectProjectContent();
+        var settingsRecentProjectsContent = new SettingsRecentProjectsContent();
         var settingsCreateProjectContent = new SettingsCreateProjectContent();
         var settingsMultitaskingContent = new SettingsMultitaskingContent();
 
@@ -39,23 +37,15 @@ internal sealed class SettingsPanel : Grid
         };
 
         var settingsUsageButton = new Button { Content = "Usage" };
-        var settingsWorkspaceButton = new Button { Content = "Workspace" };
-        var settingsProjectsButton = new Button { Content = "Current Projects" };
-        var settingsSelectProjectButton = new Button { Content = "Select Project" };
+        var settingsRecentProjectsButton = new Button { Content = "Recent Projects" };
         var settingsCreateProjectButton = new Button { Content = "Create Project" };
         var settingsMultitaskingButton = new Button { Content = "Multitasking" };
 
         settingsUsageButton.Click += (_, _) => settingsInnerContentControl.Content = settingsUsageContent;
-        settingsWorkspaceButton.Click += (_, _) => settingsInnerContentControl.Content = settingsWorkspaceContent;
-        settingsProjectsButton.Click += (_, _) =>
+        settingsRecentProjectsButton.Click += (_, _) =>
         {
-            settingsProjectsContent.Refresh();
-            settingsInnerContentControl.Content = settingsProjectsContent;
-        };
-        settingsSelectProjectButton.Click += (_, _) =>
-        {
-            settingsSelectProjectContent.Refresh();
-            settingsInnerContentControl.Content = settingsSelectProjectContent;
+            settingsRecentProjectsContent.Refresh();
+            settingsInnerContentControl.Content = settingsRecentProjectsContent;
         };
         settingsCreateProjectButton.Click += (_, _) =>
         {
@@ -65,9 +55,7 @@ internal sealed class SettingsPanel : Grid
         settingsMultitaskingButton.Click += (_, _) => settingsInnerContentControl.Content = settingsMultitaskingContent;
 
         settingsSidebar.Children.Add(settingsUsageButton);
-        settingsSidebar.Children.Add(settingsWorkspaceButton);
-        settingsSidebar.Children.Add(settingsProjectsButton);
-        settingsSidebar.Children.Add(settingsSelectProjectButton);
+        settingsSidebar.Children.Add(settingsRecentProjectsButton);
         settingsSidebar.Children.Add(settingsCreateProjectButton);
         settingsSidebar.Children.Add(settingsMultitaskingButton);
 

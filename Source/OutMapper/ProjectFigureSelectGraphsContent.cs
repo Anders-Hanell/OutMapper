@@ -16,7 +16,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
     private readonly Grid _cellsGrid;
     private readonly TextBlock _noSizeLabel;
     private readonly TextBlock _statusLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentFigureName;
     private int _rowCount;
     private int _colCount;
@@ -84,7 +84,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
 
     public void SetFigure(string projectName, string figureName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentFigureName = figureName;
         _statusLabel.Text = string.Empty;
 
@@ -116,7 +116,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
     internal void OnAnalysesWithGraphListResponseReceived(AnalysesWithGraphListResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -194,7 +194,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
 
     private void CreateFigureGraph()
     {
-        if (_currentProjectName is null || _currentFigureName is null)
+        if (_currentProjectFolder is null || _currentFigureName is null)
         {
             _statusLabel.Text = "No figure selected.";
             return;
@@ -208,7 +208,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
 
         _statusLabel.Text = "Creating figure...";
         MessageRouter.SendMessage(new CreateFigureGraphRequest(
-            _currentProjectName, _currentFigureName, _rowCount, _colCount, _cellAnalysisNames.ToImmutableArray()));
+            _currentProjectFolder, _currentFigureName, _rowCount, _colCount, _cellAnalysisNames.ToImmutableArray()));
     }
 
     internal void OnCreateFigureGraphResponseReceived(CreateFigureGraphResponse response)
@@ -219,7 +219,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             return;
         }
 
-        var outputPath = FigureGraphPdfService.GeneratePdf(response.ProjectName, response.FigureName, response);
+        var outputPath = FigureGraphPdfService.GeneratePdf(response.ProjectFolder, response.FigureName, response);
 
         _statusLabel.Text = outputPath is null
             ? "Generated, but the PDF could not be written."

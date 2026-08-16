@@ -1,3 +1,3 @@
 namespace Messages;
 
-public sealed record CohortListRequest(string ProjectName) : Message;
+public sealed record CohortListRequest(string ProjectFolder) : Message;

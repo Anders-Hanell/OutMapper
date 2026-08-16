@@ -11,7 +11,6 @@ internal static class MessageRouter
     {
         return message switch
         {
-            WorkspaceChanged workspaceChanged => TaskManagerService.HandleWorkspaceChangedAsync(workspaceChanged),
             DatasetListRequest datasetListRequest => TaskManagerService.HandleDatasetListRequestAsync(datasetListRequest),
             CreateDatasetRequest createDatasetRequest => TaskManagerService.HandleCreateDatasetRequestAsync(createDatasetRequest),
             ParseDatasetRequest parseDatasetRequest => TaskManagerService.HandleParseDatasetRequestAsync(parseDatasetRequest),

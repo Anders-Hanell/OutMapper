@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Messages;
 
 public sealed record CreateFigureGraphResponse(
-    string ProjectName,
+    string ProjectFolder,
     string FigureName,
     bool Success,
     string? ErrorMessage,

@@ -17,7 +17,7 @@ public sealed class ProjectCreateCohortContent : Border
     private readonly StackPanel _linkedDatasetsPanel;
     private readonly TextBlock _linkedDatasetsPlaceholder;
     private readonly TextBlock _resultLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _selectedCsvFilePath;
 
     public ProjectCreateCohortContent() : this(new WindowsCsvFilePicker())
@@ -110,7 +110,7 @@ public sealed class ProjectCreateCohortContent : Border
 
     public void SetProject(string? projectName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _cohortNameInput.Text = string.Empty;
         _resultLabel.Text = string.Empty;
         _selectedCsvFilePath = null;
@@ -127,7 +127,7 @@ public sealed class ProjectCreateCohortContent : Border
     internal void OnDatasetListResponseReceived(DatasetListResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }
@@ -160,7 +160,7 @@ public sealed class ProjectCreateCohortContent : Border
 
     private void CreateCohort()
     {
-        if (_currentProjectName is null)
+        if (_currentProjectFolder is null)
         {
             _resultLabel.Text = "No project selected.";
             return;
@@ -186,13 +186,13 @@ public sealed class ProjectCreateCohortContent : Border
             .ToImmutableArray();
 
         _resultLabel.Text = $"Creating '{cohortName}'...";
-        MessageRouter.SendMessage(new CreateCohortRequest(cohortName, _currentProjectName, _selectedCsvFilePath, linkedDatasetNames));
+        MessageRouter.SendMessage(new CreateCohortRequest(cohortName, _currentProjectFolder, _selectedCsvFilePath, linkedDatasetNames));
     }
 
     internal void OnCreateCohortResponseReceived(CreateCohortResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal))
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal))
         {
             return;
         }

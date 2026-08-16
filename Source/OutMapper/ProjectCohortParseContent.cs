@@ -13,7 +13,7 @@ public sealed class ProjectCohortParseContent : Border
     private readonly TextBox _patientIdColumnHeaderInput;
     private readonly TextBox _outcomeColumnHeaderInput;
     private readonly TextBlock _statusLabel;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentCohortName;
 
     public ProjectCohortParseContent()
@@ -85,14 +85,14 @@ public sealed class ProjectCohortParseContent : Border
 
     public void SetCohort(string projectName, string cohortName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentCohortName = cohortName;
         _statusLabel.Text = string.Empty;
     }
 
     private void StartParse()
     {
-        if (_currentProjectName is null || _currentCohortName is null)
+        if (_currentProjectFolder is null || _currentCohortName is null)
         {
             _statusLabel.Text = "No cohort selected.";
             return;
@@ -109,7 +109,7 @@ public sealed class ProjectCohortParseContent : Border
                 break;
             case Success<CohortParseParams> success:
                 _statusLabel.Text = "Parsing...";
-                MessageRouter.SendMessage(new ParseCohortRequest(_currentProjectName, _currentCohortName, success.Value));
+                MessageRouter.SendMessage(new ParseCohortRequest(_currentProjectFolder, _currentCohortName, success.Value));
                 break;
         }
     }

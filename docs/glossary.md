@@ -32,7 +32,7 @@ A combination of multiple graphs, arranged in a fixed grid of rows and columns. 
 
 #### Project
 
-A user-created, named container that owns [Dataset](#dataset)s. A workspace (the folder the user selects on disk) may contain multiple projects; exactly one project is selected as the current project at a time.
+A user-created, named container that owns [Dataset](#dataset)s. A project lives at an arbitrary folder the user creates or opens on disk — there is no shared container folder for multiple projects. Exactly one project is open as the current project at a time; OutMapper keeps a bounded, most-recently-used list of project folders so the user can switch back to a previously opened project without browsing to it again.
 
 ### Data
 

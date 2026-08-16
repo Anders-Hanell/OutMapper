@@ -1,7 +1,7 @@
 namespace Messages;
 
 public sealed record AnalysisResultResponse(
-    string ProjectName,
+    string ProjectFolder,
     string AnalysisName,
     bool GenerationHasRun,
     DateTime? GeneratedAtUtc,

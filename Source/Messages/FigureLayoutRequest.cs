@@ -1,3 +1,3 @@
 namespace Messages;
 
-public sealed record FigureLayoutRequest(string ProjectName, string FigureName) : Message;
+public sealed record FigureLayoutRequest(string ProjectFolder, string FigureName) : Message;

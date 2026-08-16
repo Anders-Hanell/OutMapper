@@ -17,8 +17,8 @@ The Uno Platform application and presentation layer. It currently owns:
 - Application startup and window creation.
 - Material theme and Uno Toolkit resource initialization.
 - UI composition and navigation.
-- Selection and local persistence of the current workspace path.
-- Project folder discovery and creation.
+- Selection, creation, opening, and local persistence of the current project folder, plus a bounded most-recently-used list of project folders.
+- Project folder creation and validation.
 - Dataset user interactions, scoped to the currently selected project.
 - Cohort user interactions, scoped to the currently selected project, including a basic dataset-linkage picker at creation time.
 - Analysis user interactions, scoped to the currently selected project: creation (name only) and a settings panel (Cohort + two channel names + a bin size per channel) that triggers graph generation.
@@ -28,29 +28,28 @@ The Uno Platform application and presentation layer. It currently owns:
 
 `OutMapper` references both `TaskManager` and `Messages`.
 
-`OutMapper`'s own disk-touching services (`ProjectFolderService`, `AnalysisGraphPdfService`, `FigureGraphPdfService`) take `TaskManager.IFileSystem` as an explicit parameter rather than calling `System.IO` directly, mirroring `TaskManager`'s seam (see below); each has a public overload that defaults to `LocalFileSystem.Instance` for production callers, and an `internal` overload tests call with a fake. Reading and persisting settings (workspace path, selected project) goes through `OutMapper.ISettingsStore` (real implementation `LocalSettingsStore`, wrapping `ApplicationData.Current.LocalSettings`) rather than touching `ApplicationData` inline. Letting the user pick a folder or file goes through `OutMapper.IFolderPicker`/`IFilePicker` (real implementations `WindowsFolderPicker`/`WindowsCsvFilePicker`, wrapping `Windows.Storage.Pickers`) rather than constructing a picker inline. All four seams exist purely for testability — swapping the real implementation for a `Tests/TestSupport` fake in tests, never in production.
+`OutMapper`'s own disk-touching services (`ProjectFolderService`, `RecentProjectsService`, `AnalysisGraphPdfService`, `FigureGraphPdfService`) take `TaskManager.IFileSystem` as an explicit parameter rather than calling `System.IO` directly, mirroring `TaskManager`'s seam (see below); each has a public overload that defaults to `LocalFileSystem.Instance` for production callers, and an `internal` overload tests call with a fake. Reading and persisting settings (the current project folder, the recent-projects list) goes through `OutMapper.ISettingsStore` (real implementation `LocalSettingsStore`, wrapping `ApplicationData.Current.LocalSettings`) rather than touching `ApplicationData` inline. Letting the user pick a folder or file goes through `OutMapper.IFolderPicker`/`IFilePicker` (real implementations `WindowsFolderPicker`/`WindowsCsvFilePicker`, wrapping `Windows.Storage.Pickers`) rather than constructing a picker inline. All these seams exist purely for testability — swapping the real implementation for a `Tests/TestSupport` fake in tests, never in production.
 
 ### `TaskManager`
 
 A .NET class library that processes background requests. It currently owns:
 
 - An in-process, single-reader message queue.
-- The current workspace path used by task operations.
-- Dataset discovery under the current project's `Datasets` directory (`Projects/<project-name>/OutMapper_InternalFiles/Datasets`).
+- Dataset discovery under the current project's `Datasets` directory (`<project-folder>/OutMapper_InternalFiles/Datasets`).
 - Creation of `.omds` dataset files and same-named dataset folders (each containing an `Imported raw data` subfolder) within the owning project's `Datasets` directory, optionally copying `.csv` files from a user-selected raw data folder into `Imported raw data`.
-- Parsing every `.csv` file in a dataset's `Imported raw data` folder into a `TimeSeries` via `Algorithms.Csv.ParseBytes`, persisting each successfully parsed series and a per-dataset parse-result summary (see [Persistence and workspace layout](#persistence-and-workspace-layout)), and re-reading that persisted summary on request without reparsing.
-- Cohort discovery under the current project's `Cohorts` directory (`Projects/<project-name>/OutMapper_InternalFiles/Cohorts`).
+- Parsing every `.csv` file in a dataset's `Imported raw data` folder into a `TimeSeries` via `Algorithms.Csv.ParseBytes`, persisting each successfully parsed series and a per-dataset parse-result summary (see [Persistence and project layout](#persistence-and-project-layout)), and re-reading that persisted summary on request without reparsing.
+- Cohort discovery under the current project's `Cohorts` directory (`<project-folder>/OutMapper_InternalFiles/Cohorts`).
 - Creation of `.omch` cohort files and same-named cohort folders (each containing an `Imported raw data` subfolder) within the owning project's `Cohorts` directory, copying the user-selected `.csv` file into `Imported raw data` and recording the selected linked-dataset names.
 - Parsing a cohort's single `.csv` file into a `Cohort` via `Algorithms.CohortCsv.ParseBytes`, persisting the parsed cohort and a parse-result summary, and re-reading that persisted summary on request without reparsing.
-- Analysis discovery under the current project's `Analyses` directory (`Projects/<project-name>/OutMapper_InternalFiles/Analyses`), and creation of `.oman` analysis files and same-named analysis folders (no raw data to import — an Analysis only references an existing Cohort and dataset(s) already in the project).
+- Analysis discovery under the current project's `Analyses` directory (`<project-folder>/OutMapper_InternalFiles/Analyses`), and creation of `.oman` analysis files and same-named analysis folders (no raw data to import — an Analysis only references an existing Cohort and dataset(s) already in the project).
 - Generating a Two-variable analysis graph (`AnalysisService.GenerateGraphAsync`): matching a Cohort's patients to their parsed time series by filename (patient ID) across the Cohort's linked dataset(s) — exactly one match required per patient, else the patient is excluded as unmatched or ambiguous — parsing each matched patient's outcome as a number, computing per-channel bin edges from the observed data, and computing a per-cell Spearman correlation (via `Algorithms`) between percent-time-in-cell and outcome across patients, mapped to Jet colors. Persists a generation-result summary and re-reads it on request without recomputing. On a *successful* generation, also persists the association grid itself (channel names, bin edges, row-major cell colors) to `graph-data.json` — unlike `generation-result.json`, this file is only overwritten on success, so a later failed regeneration attempt does not discard the last good grid. `AnalysisService.ReadPersistedGraphData` reads it back, and `AnalysisService.ListAnalysesWithPersistedGraph` reports which Analyses currently have one, for use by Figures.
-- Figure discovery under the current project's `Figures` directory (`Projects/<project-name>/OutMapper_InternalFiles/Figures`), and creation of `.omfg` figure files and same-named figure folders (no raw data to import, mirroring Analysis creation).
+- Figure discovery under the current project's `Figures` directory (`<project-folder>/OutMapper_InternalFiles/Figures`), and creation of `.omfg` figure files and same-named figure folders (no raw data to import, mirroring Analysis creation).
 - Saving a Figure's size (`FigureService.SaveSize`) and assembling a Figure's graph (`FigureService.CreateGraph`), both persisting `figure-config.json` (row count, column count, and a row-major array of per-cell Analysis-name assignments). Saving a new size remaps prior cell assignments by `(row, col)` coordinate into the new dimensions — assignments that still fall within the new bounds are kept, everything else (including cells beyond a shrunk dimension) is dropped. Assembling a Figure's graph reads each assigned cell's Analysis via `AnalysisService.ReadPersistedGraphData`; a cell with no assignment, or whose Analysis has no persisted graph data, is reported as an empty cell rather than failing the whole request — the Figure is still produced, with that cell left blank.
 - Emission of dataset, cohort, analysis-list/creation, analysis-generation, figure-list/creation, figure-layout/size, and parse/generation-result responses.
 
 `TaskManager` references `Algorithms` and `Messages`, and does not reference the UI project. `DatasetParsingService`, `CohortParsingService`, `AnalysisService`, and `FigureService` (all internal) hold the orchestration logic for their respective entities; `TaskManagerService`'s parse-, generation-, and figure-related handlers delegate to them, mirroring the existing thin-handler shape used for dataset creation.
 
-All disk access in `TaskManagerService` and the four services above goes through `TaskManager.IFileSystem` (public interface, in `Source/TaskManager/IO/`), passed explicitly as a parameter rather than read from a static field — this is what lets tests exercise this logic against an in-memory fake with no shared mutable state, safe under parallel test execution, instead of touching real disk. `TaskManagerService`'s message handlers (the only production callers) pass the stateless `LocalFileSystem.Instance`; `TaskManager.Tests` passes `TestSupport.InMemoryFileSystem` instead. The underlying create/locate helpers (`CreateDataset`, `LocateDatasets`, `CreateCohort`, etc.) are `internal` specifically so tests can call them directly, bypassing the message channel and `TaskManagerService`'s static `_workspaceFolder` field entirely.
+All disk access in `TaskManagerService` and the four services above goes through `TaskManager.IFileSystem` (public interface, in `Source/TaskManager/IO/`), passed explicitly as a parameter rather than read from a static field — this is what lets tests exercise this logic against an in-memory fake with no shared mutable state, safe under parallel test execution, instead of touching real disk. `TaskManagerService`'s message handlers (the only production callers) pass the stateless `LocalFileSystem.Instance`; `TaskManager.Tests` passes `TestSupport.InMemoryFileSystem` instead. The underlying create/locate helpers (`CreateDataset`, `LocateDatasets`, `CreateCohort`, etc.) are `internal` specifically so tests can call them directly, bypassing the message channel entirely. `TaskManagerService` holds no synced project-location state at all — every message carries the current project's absolute folder path directly (see [Current project selection](#current-project-selection)).
 
 `TaskManagerService`, `TaskManager.MessageRouter`, `DatasetParsingService`, `CohortParsingService`, `AnalysisService`, and `FigureService` are all `internal`; `TaskManager.GatewayToOutMapper` is the only public entry point, so the message-only boundary with `OutMapper` is enforced by the compiler rather than by convention alone.
 
@@ -73,7 +72,7 @@ A .NET class library referencing only `DataStructures`, kept dependency-free and
 - `AssociationGrid`: the per-cell Spearman correlation between every patient's percent-time-in-cell and their outcome, across a whole grid.
 - `JetColorScale`: maps a value in a fixed range to a Jet-scale hex color, piecewise-linearly interpolated across 9 anchor colors (matching the R reference implementation's `ColorScale.R`).
 
-These five are used together by `TaskManager.AnalysisService` to compute a Two-variable Analysis's association grid; see [Persistence and workspace layout](#persistence-and-workspace-layout) for where the result is written, and [`glossary.md`](glossary.md#two-variable) for the domain-level description.
+These five are used together by `TaskManager.AnalysisService` to compute a Two-variable Analysis's association grid; see [Persistence and project layout](#persistence-and-project-layout) for where the result is written, and [`glossary.md`](glossary.md#two-variable) for the domain-level description.
 
 `OutMapper` does not reference `Algorithms` or `DataStructures` directly; see [Messages](#messages) for how `CsvParseParams`/`CohortParseParams` still reach the UI.
 
@@ -83,9 +82,10 @@ A .NET class library containing the contracts exchanged between `OutMapper` and 
 
 `Messages` references `DataStructures`, so a message can carry a `DataStructures` value (such as `CsvParseParams`) directly instead of re-flattening its fields into primitives. This does not weaken the "`OutMapper` never references `Algorithms`/`DataStructures`" rule: `OutMapper.csproj` gains no new project reference from this — `DataStructures` types are merely transitively visible for compilation because `Messages` (which `OutMapper` already references) exposes them as part of its message API. `OutMapper` still never references `Algorithms`, and never calls `Csv.ParseBytes` or constructs a `TimeSeries` itself; it only holds and forwards an inert value that `TaskManager` produced or will consume.
 
+Every request and response carries the current project's absolute folder path (`ProjectFolder`) rather than a bare project name — since projects can live at arbitrary, unrelated locations, the folder is both the disk-access key and the unique identity used by response-routing guards (two different projects can coincidentally share the same folder name, but never the same folder path).
+
 The current contracts cover:
 
-- Workspace changes (`WorkspaceChanged`).
 - Dataset list requests (`DatasetListRequest`) and responses (`DatasetListResponse`).
 - Dataset creation requests (`CreateDatasetRequest`) and responses (`CreateDatasetResponse`).
 - Dataset parse requests (`ParseDatasetRequest`, carrying a `CsvParseParams`) and parse-result requests (`ParseResultRequest`).
@@ -115,11 +115,11 @@ Four xUnit v3 (`FluentAssertions`, `coverlet.collector`) test projects, one per 
 
 ## Runtime composition
 
-`App.OnLaunched` creates a WinUI `Window` and `Frame`, navigates the frame to `MainPage`, forwards any saved workspace path to `TaskManager`, and activates the window.
+`App.OnLaunched` creates a WinUI `Window` and `Frame`, navigates the frame to `MainPage`, and activates the window. No project state needs to be primed into `TaskManager` at startup, since it holds none — each `OutMapper`-side control resolves the current project folder from `ProjectFolderService` at the point it needs it and includes it directly in the message it sends.
 
 In debug builds, Uno Platform Studio support is enabled through `UseStudio()`.
 
-`MainPage` currently composes the primary navigation and content entirely in C#. The top-level areas are Settings and Projects. Dataset and cohort management are not top-level areas; both are nested inside the Projects tab, scoped to the currently selected project. Settings contains its own navigation for Usage, Workspace, Current Projects, Select Project, and Create Project. A selected dataset or cohort has its own further-nested navigation, for Parse and Result, following the same sidebar-plus-content-area shape as Settings.
+`MainPage` currently composes the primary navigation and content entirely in C#. The top-level areas are Settings and Projects. Dataset and cohort management are not top-level areas; both are nested inside the Projects tab, scoped to the currently selected project. Settings contains its own navigation for Usage, Recent Projects, Create Project, and Multitasking. A selected dataset or cohort has its own further-nested navigation, for Parse and Result, following the same sidebar-plus-content-area shape as Settings.
 
 Although the project enables the Uno MVUX feature, the currently implemented screens use programmatic UI construction and event handlers rather than MVUX models.
 
@@ -192,19 +192,17 @@ Cancellation and progress control require further design. A cancellation message
 
 ## State ownership
 
-### Workspace selection
+### Current project selection
 
-`SettingsWorkspaceContent` persists the selected workspace path in `ApplicationData.Current.LocalSettings` under `WorkspaceFolderPath`.
+`ProjectFolderService` persists the current project's absolute folder path in `ApplicationData.Current.LocalSettings` under `CurrentProjectFolder`. There is no shared "workspace" folder: a project is created or opened at whatever location the user picks, and `CurrentProjectFolder` is the only representation of "which project is open" — `TaskManagerService` holds no synchronized copy of it.
 
-On startup and whenever the user selects a workspace, a `WorkspaceChanged` message synchronizes that path to the static state held by `TaskManagerService`.
+Every dataset, cohort, analysis, and figure request/response message carries the project's absolute folder path directly (`ProjectFolder`), captured by the UI at send time. `TaskManagerService` uses that path as-is to build every filesystem path (`<project-folder>/OutMapper_InternalFiles/...`); it never resolves a project from a synchronized field, so there is nothing to keep in sync and no window where a message could be misrouted to a since-switched-to project.
 
-Some UI-side project operations read the persisted workspace path directly, while dataset and cohort operations carry no workspace folder in their request messages at all and rely entirely on `TaskManagerService` resolving its own synchronized state. The workspace therefore currently has two representations that must remain synchronized.
+`RecentProjectsService` persists a bounded (10-entry), most-recent-first list of project folder paths under `RecentProjectFolders`, used to populate the Recent Projects panel. `GetCurrentProjectFolder`/`GetCurrentProjectName` self-heal (clearing the persisted setting) if the current project's folder no longer exists on disk; a recent-list entry whose folder no longer exists is instead kept and flagged as missing, so the user can see history and remove it explicitly rather than having it silently disappear.
 
-Dataset and cohort requests additionally carry the selected project's name explicitly on every message; unlike the workspace path, `TaskManagerService` does not hold a synchronized "current project" field, so the UI is solely responsible for supplying a valid project name each time.
+### Project creation and opening
 
-### Project selection
-
-The selected project name and its workspace path are persisted in `ApplicationData.Current.LocalSettings`. Only one project is selected at a time. Changing the workspace clears the selection, and a persisted selection is rejected if its project directory no longer exists.
+`ProjectFolderService.TryCreateProject` creates a new project's folder (and its `OutMapper_InternalFiles`/`OutMapper_ProjectOutput` subfolders) under a user-picked parent folder, then sets it as the current project and adds it to the recent-projects list. `ProjectFolderService.TryOpenProject` does the same for an existing folder, after validating it contains `OutMapper_InternalFiles` (rejecting folders that don't look like an OutMapper project). Both are used by the Create Project panel (`SettingsCreateProjectContent`, which adds a folder-picker button above the project-name field) and the Recent Projects panel (`SettingsRecentProjectsContent`, which also exposes an "Open Project..." folder picker for a project not already on the recent list).
 
 The future requirement for work belonging to previously selected projects to continue in the background has not yet been designed or implemented.
 
@@ -216,48 +214,45 @@ The future requirement for work belonging to previously selected projects to con
 
 Navigation and form state are held in control instances created by `MainPage` and its content controls. There is no separate application-wide view-model or MVUX state model for the implemented screens.
 
-## Persistence and workspace layout
+## Persistence and project layout
 
-The selected workspace is an ordinary filesystem directory.
+A project is an ordinary filesystem directory at whatever location the user picked when creating or opening it — there is no shared parent folder.
 
 ```text
-<workspace>/
-└── Projects/
-    └── <project-name>/
-        ├── OutMapper_InternalFiles/
-        │   └── Datasets/
-        │       ├── <dataset-name>.omds
-        │       └── <dataset-name>/
-        │           ├── Imported raw data/
-        │           │   └── <copied .csv files>
-        │           ├── Parsed data/
-        │           │   └── <csv-basename>.json
-        │           └── parse-result.json
-        ├── Cohorts/
-        │   ├── <cohort-name>.omch
-        │   └── <cohort-name>/
-        │       ├── Imported raw data/
-        │       │   └── <copied .csv file>
-        │       ├── Parsed data/
-        │       │   └── cohort.json
-        │       ├── parse-result.json
-        │       └── linked-datasets.json
-        ├── Analyses/
-        │   ├── <analysis-name>.oman
-        │   └── <analysis-name>/
-        │       ├── generation-result.json
-        │       └── graph-data.json
-        ├── Figures/
-        │   ├── <figure-name>.omfg
-        │   └── <figure-name>/
-        │       └── figure-config.json
-        └── OutMapper_ProjectOutput/
-            ├── <analysis-name>.pdf
-            └── <figure-name>.pdf
+<project-folder>/
+├── OutMapper_InternalFiles/
+│   ├── Datasets/
+│   │   ├── <dataset-name>.omds
+│   │   └── <dataset-name>/
+│   │       ├── Imported raw data/
+│   │       │   └── <copied .csv files>
+│   │       ├── Parsed data/
+│   │       │   └── <csv-basename>.json
+│   │       └── parse-result.json
+│   ├── Cohorts/
+│   │   ├── <cohort-name>.omch
+│   │   └── <cohort-name>/
+│   │       ├── Imported raw data/
+│   │       │   └── <copied .csv file>
+│   │       ├── Parsed data/
+│   │       │   └── cohort.json
+│   │       ├── parse-result.json
+│   │       └── linked-datasets.json
+│   ├── Analyses/
+│   │   ├── <analysis-name>.oman
+│   │   └── <analysis-name>/
+│   │       ├── generation-result.json
+│   │       └── graph-data.json
+│   └── Figures/
+│       ├── <figure-name>.omfg
+│       └── <figure-name>/
+│           └── figure-config.json
+└── OutMapper_ProjectOutput/
+    ├── <analysis-name>.pdf
+    └── <figure-name>.pdf
 ```
 
-- Each immediate subdirectory of `Projects` is treated as a project.
-- Creating a project creates its directory, then its `OutMapper_InternalFiles` and `OutMapper_ProjectOutput` subdirectories, after validating the name and checking for an existing directory.
+- Creating a project creates its directory, then its `OutMapper_InternalFiles` and `OutMapper_ProjectOutput` subdirectories, after validating the name and checking for an existing directory at that location. Opening an existing project instead validates that `OutMapper_InternalFiles` is already present, rejecting a folder that doesn't look like an OutMapper project.
 - `OutMapper_InternalFiles` holds files the app manages internally, such as `Datasets`, `Cohorts`, `Analyses`, and `Figures`. `OutMapper_ProjectOutput` holds files generated for the user, such as the exported PDFs.
 - Datasets are currently represented by an empty `.omds` file and a same-named folder, both created by `TaskManagerService` inside their owning project's `OutMapper_InternalFiles/Datasets` directory; a dataset cannot exist without an existing project. The dataset folder contains an `Imported raw data` subfolder, into which `.csv` files are copied from the raw data folder the user selected during dataset creation, if any.
 - Parsing a dataset (`DatasetParsingService.ParseDatasetAsync`) reads every `.csv` file in `Imported raw data`, and for each one that parses successfully, writes the resulting `TimeSeries.ToByteArray()` to a same-named `.json` file in a sibling `Parsed data` folder. Whether or not every file succeeded, a `parse-result.json` summary (parse timestamp, counts, and a per-file success/error outcome) is written directly in the dataset folder, overwriting any previous run's summary — parsing is idempotent and re-runnable. `ParseResultRequest` reads this file back without reparsing, which is how the Result panel can show the outcome of a previous session's parse.
@@ -279,10 +274,8 @@ The authored UI is primarily C# using WinUI/Uno controls and Uno C# Markup helpe
 
 The specialized content controls currently include:
 
-- `SettingsWorkspaceContent` for selecting and displaying the workspace.
-- `SettingsProjectsContent` for listing project directories.
-- `SettingsSelectProjectContent` for selecting the current project.
-- `SettingsCreateProjectContent` for project creation.
+- `SettingsRecentProjectsContent` for displaying the current project, listing recently opened projects (flagging ones whose folder is missing, with a per-entry remove action), and opening a project via folder picker.
+- `SettingsCreateProjectContent` for project creation, including a folder-picker button for choosing the new project's parent location.
 - `SettingsMultitaskingContent` for choosing how many cores calculations may use.
 - `ProjectsPanel` for dataset, cohort, analysis, and figure listing within the Projects tab, scoped to the selected project; `ProjectCreateDatasetContent` for dataset creation; `ProjectCreateCohortContent` for cohort creation (including a checkbox picker, populated via `DatasetListRequest`, for the dataset(s) to link the cohort to); `ProjectCreateAnalysisContent` for analysis creation (name only); `ProjectCreateFigureContent` for figure creation (name only).
 - `ProjectDatasetContent` for a selected dataset, hosting its own nested Parse/Result navigation; `ProjectDatasetParseContent` for configuring and triggering a CSV parse (`CsvParseParams`); `ProjectDatasetResultContent` for displaying the last parse's per-file outcome.
@@ -307,7 +300,7 @@ Platform-specific behavior should be verified against the target frameworks and 
 
 Pure logic (`Algorithms`, `DataStructures`) is unit tested directly — no seams needed, since neither project does I/O.
 
-Logic that touches disk, app settings, or file/folder pickers is tested against the fakes in `Tests/TestSupport` (see [Test projects](#test-projects)) rather than real disk or `ApplicationData`: construct an `InMemoryFileSystem`/`InMemorySettingsStore`/fake picker, pass it to the `internal` testable overload of the method under test (e.g. `ProjectFolderService.TryCreateProject(fileSystem, workspaceFolder, name, out message)`, `TaskManagerService.CreateDataset(fileSystem, ...)`), and assert against the fake's state afterward. This keeps tests fast, deterministic, and safe to run in parallel, since each fake instance is independent and nothing touches the real filesystem or `ApplicationData`. New disk-, settings-, or picker-touching code should be threaded through the same seams rather than calling `System.IO`, `ApplicationData`, or `Windows.Storage.Pickers` directly, so it stays testable this way.
+Logic that touches disk, app settings, or file/folder pickers is tested against the fakes in `Tests/TestSupport` (see [Test projects](#test-projects)) rather than real disk or `ApplicationData`: construct an `InMemoryFileSystem`/`InMemorySettingsStore`/fake picker, pass it to the `internal` testable overload of the method under test (e.g. `ProjectFolderService.TryCreateProject(fileSystem, settingsStore, parentFolder, name, out message)`, `TaskManagerService.CreateDataset(fileSystem, projectFolder, ...)`), and assert against the fake's state afterward. This keeps tests fast, deterministic, and safe to run in parallel, since each fake instance is independent and nothing touches the real filesystem or `ApplicationData`. New disk-, settings-, or picker-touching code should be threaded through the same seams rather than calling `System.IO`, `ApplicationData`, or `Windows.Storage.Pickers` directly, so it stays testable this way.
 
 PDF drawing logic is tested independently of file writing: `HeatmapDrawing.Draw` takes a plain `SKCanvas` and data, with no I/O, so it's tested by drawing onto an in-memory `SKSurface` and asserting on pixel colors. The PDF services' *file-writing* behavior (right path, non-empty `%PDF`-prefixed output) is tested separately, against `InMemoryFileSystem`. For visual inspection of a generated PDF's actual appearance — useful while the layout is still being iterated on, before a snapshot/approval-based regression system would be worth the cost — `Tests/OutMapper.Tests/SamplePdfGenerator.cs` is a skip-by-default helper that renders one representative PDF using the real `LocalFileSystem` to a scratch path; run it explicitly (`dotnet test --filter SamplePdfGenerator`, after temporarily removing its `Skip`) and read the resulting file directly (Claude's `Read` tool renders PDF pages).
 
@@ -321,14 +314,13 @@ Beyond automated tests, verification also depends on:
 
 ## Known architectural limitations
 
-- Workspace state is duplicated between local settings and `TaskManagerService`.
 - Several services and routers are static, coupling state to the application process lifetime.
 - Project filesystem operations currently execute directly from the UI project instead of through `TaskManager`.
 - TaskManager has no intra-message parallel processing yet; CSV parsing (the first implemented candidate stage) runs one file at a time, and other heatmap stages have no implementation for bounded multiple-core work at all. `SettingsMultitaskingContent.GetMaxDegreeOfParallelism()` exists to bound that future work but is not yet called from anywhere.
 - Cancellation and progress control for long-running sequential messages are not yet designed. A dataset or cohort parse currently runs to completion (or first unexpected filesystem failure) with no way to cancel it mid-run.
 - UI composition, event handling, and navigation are concentrated in code rather than separated into view and state layers, except for the top-level `NavigationManager`/`IContentHost` seam (see [UI architecture](#ui-architecture)); `ProjectsPanel` and the various content controls still mix UI construction with state and logic.
 - Automated test coverage exists for pure logic (`Algorithms`, `DataStructures`), for `TaskManager`'s and `OutMapper`'s disk-, settings-, and picker-touching services (via the `TestSupport` fakes), and for `NavigationManager` and `HeatmapDrawing` — but not yet for `ProjectsPanel`'s inner navigation, the individual `Project*Content`/`Settings*Content` controls, or the message-routing/gateway layer.
-- Cohort-to-dataset linkage (picked at cohort creation time, persisted in `linked-datasets.json`) is now used for patient-ID matching when generating an Analysis's graph (`AnalysisService`), but still isn't validated at cohort-creation or -linking time itself — see [Cohort](glossary.md#cohort) in the glossary for the intended behavior, and the "Generating an Analysis's graph" bullet under [Persistence and workspace layout](#persistence-and-workspace-layout) for what's implemented so far.
+- Cohort-to-dataset linkage (picked at cohort creation time, persisted in `linked-datasets.json`) is now used for patient-ID matching when generating an Analysis's graph (`AnalysisService`), but still isn't validated at cohort-creation or -linking time itself — see [Cohort](glossary.md#cohort) in the glossary for the intended behavior, and the "Generating an Analysis's graph" bullet under [Persistence and project layout](#persistence-and-project-layout) for what's implemented so far.
 - The Two-variable Analysis association grid has no per-cell minimum-observation filter (only a flat minimum-patient-count placeholder, `Algorithms.AssociationGrid.MinimumPatientsPerCell = 3`, not exposed as a setting), no confidence intervals/p-values, no smoothing, and no density/detrimental-zone/dichotomy/regression variants — the R reference implementation (`docs/r_code_reference.md`) has all of these; this is a deliberately minimal first pass.
 - The Figure PDF lays out its whole grid on a single page with no pagination, scaling each cell's heatmap to fit — for large grids (e.g. 8x8 or more) individual cells become small and their fills illegible. This is a deliberately minimal first pass.
 - An Analysis's persisted `graph-data.json` is not automatically invalidated when the underlying Cohort or Dataset data it was generated from changes. A Figure assembled from that Analysis will keep drawing the stale grid until the Analysis is explicitly regenerated.

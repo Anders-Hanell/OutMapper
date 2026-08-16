@@ -6,12 +6,37 @@ namespace OutMapper;
 
 public sealed class SettingsCreateProjectContent : Border
 {
+    private readonly IFolderPicker _folderPicker;
+    private readonly TextBlock _selectedLocationLabel;
     private readonly TextBox _projectNameInput;
     private readonly TextBlock _resultLabel;
+    private string? _selectedParentFolder;
 
-    public SettingsCreateProjectContent()
+    public SettingsCreateProjectContent() : this(new WindowsFolderPicker())
     {
+    }
+
+    internal SettingsCreateProjectContent(IFolderPicker folderPicker)
+    {
+        _folderPicker = folderPicker;
+
         Padding = new Thickness(24);
+
+        var selectLocationButton = new Button
+        {
+            Content = "Select Location...",
+            MinWidth = 120,
+            MinHeight = 44,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        AutomationProperties.SetName(selectLocationButton, "Select location");
+        selectLocationButton.Click += (_, _) => SelectLocation();
+
+        _selectedLocationLabel = new TextBlock
+        {
+            Text = "No location selected.",
+            TextWrapping = TextWrapping.Wrap
+        };
 
         _projectNameInput = new TextBox
         {
@@ -50,6 +75,8 @@ public sealed class SettingsCreateProjectContent : Border
                     FontSize = 20,
                     FontWeight = FontWeights.SemiBold
                 },
+                selectLocationButton,
+                _selectedLocationLabel,
                 _projectNameInput,
                 createButton,
                 _resultLabel
@@ -62,9 +89,21 @@ public sealed class SettingsCreateProjectContent : Border
         _resultLabel.Text = string.Empty;
     }
 
+    private async void SelectLocation()
+    {
+        var path = await _folderPicker.PickFolderAsync();
+        if (path is null)
+        {
+            return;
+        }
+
+        _selectedParentFolder = path;
+        _selectedLocationLabel.Text = path;
+    }
+
     private void CreateProject()
     {
-        var created = ProjectFolderService.TryCreateProject(_projectNameInput.Text, out var message);
+        var created = ProjectFolderService.TryCreateProject(_selectedParentFolder, _projectNameInput.Text, out var message);
         _resultLabel.Text = message;
 
         if (created)

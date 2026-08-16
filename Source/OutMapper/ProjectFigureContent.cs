@@ -11,7 +11,7 @@ public sealed class ProjectFigureContent : Border
     private readonly ContentControl _innerContentArea;
     private readonly ProjectFigureSizeContent _sizeContent;
     private readonly ProjectFigureSelectGraphsContent _selectGraphsContent;
-    private string? _currentProjectName;
+    private string? _currentProjectFolder;
     private string? _currentFigureName;
 
     public ProjectFigureContent()
@@ -68,7 +68,7 @@ public sealed class ProjectFigureContent : Border
 
     public void SetFigure(string projectName, string figureName)
     {
-        _currentProjectName = projectName;
+        _currentProjectFolder = projectName;
         _currentFigureName = figureName;
         _nameLabel.Text = figureName;
         _sizeContent.SetFigure(projectName, figureName);
@@ -79,7 +79,7 @@ public sealed class ProjectFigureContent : Border
     internal void OnFigureLayoutResponseReceived(FigureLayoutResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal) ||
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal) ||
             !string.Equals(response.FigureName, _currentFigureName, StringComparison.Ordinal))
         {
             return;
@@ -92,7 +92,7 @@ public sealed class ProjectFigureContent : Border
     internal void OnSaveFigureSizeResponseReceived(SaveFigureSizeResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal) ||
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal) ||
             !string.Equals(response.FigureName, _currentFigureName, StringComparison.Ordinal))
         {
             return;
@@ -105,7 +105,7 @@ public sealed class ProjectFigureContent : Border
     internal void OnCreateFigureGraphResponseReceived(CreateFigureGraphResponse response)
     {
         // GatewayToTaskManager guarantees that incoming messages are dispatched on the UI thread.
-        if (!string.Equals(response.ProjectName, _currentProjectName, StringComparison.Ordinal) ||
+        if (!string.Equals(response.ProjectFolder, _currentProjectFolder, StringComparison.Ordinal) ||
             !string.Equals(response.FigureName, _currentFigureName, StringComparison.Ordinal))
         {
             return;

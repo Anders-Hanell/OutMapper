@@ -33,7 +33,7 @@ public class SamplePdfGenerator
             CellColorsRowMajor: ImmutableArray.Create("#2166AC", "#67A9CF", "#D1E5F0", "#FDDBC7", "#EF8A62", "#B2182B", "#67A9CF", "#2166AC"));
 
         var outputFile = AnalysisGraphPdfService.GeneratePdf(
-            LocalFileSystem.Instance, outputDirectory, "SampleProject", "SampleAnalysis", graph);
+            LocalFileSystem.Instance, outputDirectory, "SampleAnalysis", graph);
 
         outputFile.Should().NotBeNull();
     }

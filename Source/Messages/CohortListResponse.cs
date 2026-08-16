@@ -2,4 +2,4 @@ using System.Collections.Immutable;
 
 namespace Messages;
 
-public sealed record CohortListResponse(string? ProjectName, ImmutableArray<string> CohortNames) : Message;
+public sealed record CohortListResponse(string? ProjectFolder, ImmutableArray<string> CohortNames) : Message;
