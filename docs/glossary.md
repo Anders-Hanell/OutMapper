@@ -84,7 +84,7 @@ An Analysis's most recently *successfully* generated graph is what can be assign
 
 #### Two-variable
 
-The only [Analysis](#analysis) method implemented so far. The user picks a Cohort and two [Channel](#channel)s (by name) plus a [Bin](#bin) size for each. Each channel's bin edges span its observed value range (across the Cohort's matched patients) at that bin size, forming a 2D grid — one axis per channel.
+The only [Analysis](#analysis) method implemented so far. The user picks a Cohort and two [Channel](#channel)s (by name), plus a range (start, end) and a [Bin](#bin) width for each. Each channel's bin edges span its configured range at that bin width, forming a 2D grid — one axis per channel. A value outside a channel's configured range is treated as missing when computing that channel's bins.
 
 For each grid cell, the association value is the Spearman correlation, across the Cohort's patients, between "percent of that patient's valid monitoring time spent in this cell" and that patient's outcome. Values are mapped to color for the Outcome heatmap using the Jet color scale.
 
@@ -92,4 +92,4 @@ This first implementation assumes all available data is included (no exclusion t
 
 #### Bin
 
-One interval of a [Channel](#channel)'s value range, used as an axis unit in an [Analysis](#analysis) grid. A channel's bins all share the same size (configured by the user); their edges span the channel's observed value range.
+One interval of a [Channel](#channel)'s configured range, used as an axis unit in an [Analysis](#analysis) grid. A channel's bins all share the same width (configured by the user, along with the range's start and end), except possibly the last bin, which is narrower if the range's size isn't a whole number of bins at that width — a case the settings panel warns about.

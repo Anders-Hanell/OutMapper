@@ -4,7 +4,9 @@ public static class GridBinning
 {
     /// <summary>
     /// Builds bin edges starting at <paramref name="min"/>, stepping by <paramref name="binSize"/>,
-    /// extended with enough bins to cover <paramref name="max"/>. Always returns at least one bin.
+    /// with enough bins to reach <paramref name="max"/>. The edges never extend past
+    /// <paramref name="max"/>: if the span isn't a whole number of bins, the last bin is narrower
+    /// than the others. Always returns at least one bin.
     /// </summary>
     public static double[] ComputeBinEdges(double min, double max, double binSize)
     {
@@ -12,10 +14,12 @@ public static class GridBinning
         var binCount = Math.Max(1, (int)Math.Ceiling(span / binSize));
 
         var edges = new double[binCount + 1];
-        for (var i = 0; i <= binCount; i++)
+        for (var i = 0; i < binCount; i++)
         {
             edges[i] = min + i * binSize;
         }
+
+        edges[binCount] = max;
 
         return edges;
     }

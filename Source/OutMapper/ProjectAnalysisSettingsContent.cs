@@ -15,12 +15,17 @@ public sealed class ProjectAnalysisSettingsContent : Border
     private readonly ComboBox _cohortComboBox;
     private readonly TextBlock _noCohortsLabel;
     private readonly TextBox _channelANameInput;
-    private readonly TextBox _channelABinSizeInput;
+    private readonly TextBox _channelARangeStartInput;
+    private readonly TextBox _channelARangeEndInput;
+    private readonly TextBox _channelABinWidthInput;
     private readonly TextBox _channelBNameInput;
-    private readonly TextBox _channelBBinSizeInput;
+    private readonly TextBox _channelBRangeStartInput;
+    private readonly TextBox _channelBRangeEndInput;
+    private readonly TextBox _channelBBinWidthInput;
     private readonly TextBlock _statusLabel;
     private string? _currentProjectFolder;
     private string? _currentAnalysisName;
+    private string? _pendingRangeWarning;
 
     public ProjectAnalysisSettingsContent()
     {
@@ -46,9 +51,23 @@ public sealed class ProjectAnalysisSettingsContent : Border
             MinWidth = 280
         };
 
-        _channelABinSizeInput = new TextBox
+        _channelARangeStartInput = new TextBox
         {
-            Header = "First channel bin size",
+            Header = "First channel range start",
+            PlaceholderText = "e.g. 0",
+            MinWidth = 280
+        };
+
+        _channelARangeEndInput = new TextBox
+        {
+            Header = "First channel range end",
+            PlaceholderText = "e.g. 100",
+            MinWidth = 280
+        };
+
+        _channelABinWidthInput = new TextBox
+        {
+            Header = "First channel bin width",
             PlaceholderText = "e.g. 5",
             MinWidth = 280
         };
@@ -60,9 +79,23 @@ public sealed class ProjectAnalysisSettingsContent : Border
             MinWidth = 280
         };
 
-        _channelBBinSizeInput = new TextBox
+        _channelBRangeStartInput = new TextBox
         {
-            Header = "Second channel bin size",
+            Header = "Second channel range start",
+            PlaceholderText = "e.g. -1",
+            MinWidth = 280
+        };
+
+        _channelBRangeEndInput = new TextBox
+        {
+            Header = "Second channel range end",
+            PlaceholderText = "e.g. 1",
+            MinWidth = 280
+        };
+
+        _channelBBinWidthInput = new TextBox
+        {
+            Header = "Second channel bin width",
             PlaceholderText = "e.g. 0.1",
             MinWidth = 280
         };
@@ -100,9 +133,13 @@ public sealed class ProjectAnalysisSettingsContent : Border
                 _cohortComboBox,
                 _noCohortsLabel,
                 _channelANameInput,
-                _channelABinSizeInput,
+                _channelARangeStartInput,
+                _channelARangeEndInput,
+                _channelABinWidthInput,
                 _channelBNameInput,
-                _channelBBinSizeInput,
+                _channelBRangeStartInput,
+                _channelBRangeEndInput,
+                _channelBBinWidthInput,
                 generateButton,
                 _statusLabel
             }
@@ -116,6 +153,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
         _currentProjectFolder = projectName;
         _currentAnalysisName = analysisName;
         _statusLabel.Text = string.Empty;
+        _pendingRangeWarning = null;
         _cohortComboBox.Items.Clear();
         _noCohortsLabel.Visibility = Visibility.Visible;
 
@@ -152,28 +190,63 @@ public sealed class ProjectAnalysisSettingsContent : Border
         var channelAName = _channelANameInput.Text?.Trim() ?? string.Empty;
         var channelBName = _channelBNameInput.Text?.Trim() ?? string.Empty;
 
-        if (!double.TryParse(_channelABinSizeInput.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var channelABinSize))
+        if (!TryParse(_channelARangeStartInput.Text, out var channelARangeStart))
         {
-            _statusLabel.Text = "Enter a valid number for the first channel's bin size.";
+            _statusLabel.Text = "Enter a valid number for the first channel's range start.";
             return;
         }
 
-        if (!double.TryParse(_channelBBinSizeInput.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var channelBBinSize))
+        if (!TryParse(_channelARangeEndInput.Text, out var channelARangeEnd))
         {
-            _statusLabel.Text = "Enter a valid number for the second channel's bin size.";
+            _statusLabel.Text = "Enter a valid number for the first channel's range end.";
             return;
         }
 
-        switch (TwoVariableAnalysisSettings.Create(cohortName, channelAName, channelABinSize, channelBName, channelBBinSize))
+        if (!TryParse(_channelABinWidthInput.Text, out var channelABinWidth))
+        {
+            _statusLabel.Text = "Enter a valid number for the first channel's bin width.";
+            return;
+        }
+
+        if (!TryParse(_channelBRangeStartInput.Text, out var channelBRangeStart))
+        {
+            _statusLabel.Text = "Enter a valid number for the second channel's range start.";
+            return;
+        }
+
+        if (!TryParse(_channelBRangeEndInput.Text, out var channelBRangeEnd))
+        {
+            _statusLabel.Text = "Enter a valid number for the second channel's range end.";
+            return;
+        }
+
+        if (!TryParse(_channelBBinWidthInput.Text, out var channelBBinWidth))
+        {
+            _statusLabel.Text = "Enter a valid number for the second channel's bin width.";
+            return;
+        }
+
+        switch (TwoVariableAnalysisSettings.Create(
+            cohortName,
+            channelAName, channelARangeStart, channelARangeEnd, channelABinWidth,
+            channelBName, channelBRangeStart, channelBRangeEnd, channelBBinWidth))
         {
             case Failure<TwoVariableAnalysisSettings> failure:
                 _statusLabel.Text = failure.Error;
                 break;
             case Success<TwoVariableAnalysisSettings> success:
-                _statusLabel.Text = "Generating graph...";
+                _pendingRangeWarning = success.Value.RangeWarning;
+                _statusLabel.Text = _pendingRangeWarning is null
+                    ? "Generating graph..."
+                    : $"{_pendingRangeWarning} Generating graph...";
                 MessageRouter.SendMessage(new GenerateAnalysisGraphRequest(_currentProjectFolder, _currentAnalysisName, success.Value));
                 break;
         }
+    }
+
+    private static bool TryParse(string? text, out double value)
+    {
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
     internal void OnGenerateAnalysisGraphResponseReceived(GenerateAnalysisGraphResponse response)
@@ -186,9 +259,12 @@ public sealed class ProjectAnalysisSettingsContent : Border
 
         var outputPath = AnalysisGraphPdfService.GeneratePdf(response.ProjectFolder, response.AnalysisName, response);
 
-        _statusLabel.Text = outputPath is null
+        var resultMessage = outputPath is null
             ? $"Generated with {response.MatchedPatientCount} of {response.TotalPatientCount} patient(s) matched, but the PDF could not be written."
             : $"Generated with {response.MatchedPatientCount} of {response.TotalPatientCount} patient(s) matched. Saved to {outputPath}";
+
+        _statusLabel.Text = _pendingRangeWarning is null ? resultMessage : $"{_pendingRangeWarning} {resultMessage}";
+        _pendingRangeWarning = null;
     }
 
     private static Brush? GetThemeBrush(string resourceKey)

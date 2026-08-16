@@ -5,9 +5,10 @@ public static class PercentTimeGrid
     /// <summary>
     /// Computes, for one patient, the percent of their valid joint monitoring time spent in each
     /// (channel B bin, channel A bin) grid cell. "Valid joint" means both channels are non-missing
-    /// at that timestamp. Rows correspond to channel B bins, columns to channel A bins. Returns null
-    /// if the patient has zero valid joint observations, so callers can exclude them rather than
-    /// treating them as 0% everywhere.
+    /// and fall within their channel's bin edges at that timestamp; a value outside its channel's
+    /// range is treated the same as a missing value. Rows correspond to channel B bins, columns to
+    /// channel A bins. Returns null if the patient has zero valid joint observations, so callers can
+    /// exclude them rather than treating them as 0% everywhere.
     /// </summary>
     public static double[,]? ComputePercentTimeMatrix(
         IReadOnlyList<float> channelAValues,
@@ -31,14 +32,16 @@ public static class PercentTimeGrid
                 continue;
             }
 
-            validCount++;
-
             var colIndex = GridBinning.FindBinIndex(channelABinEdges, valueA);
             var rowIndex = GridBinning.FindBinIndex(channelBBinEdges, valueB);
-            if (colIndex is int col && rowIndex is int row)
+            if (colIndex is not int col || rowIndex is not int row)
             {
-                counts[row, col]++;
+                // Outside the configured range for one of the channels; treated as missing.
+                continue;
             }
+
+            validCount++;
+            counts[row, col]++;
         }
 
         if (validCount == 0)

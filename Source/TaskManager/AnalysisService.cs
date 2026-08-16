@@ -153,18 +153,7 @@ internal static class AnalysisService
             candidateOutcomes.Add(outcomeValue);
         }
 
-        var channelAMin = double.PositiveInfinity;
-        var channelAMax = double.NegativeInfinity;
-        var channelBMin = double.PositiveInfinity;
-        var channelBMax = double.NegativeInfinity;
-
-        foreach (var series in candidateSeries)
-        {
-            AccumulateRange(series.Channels[settings.ChannelAName], TimeSeries.MissingValue, ref channelAMin, ref channelAMax);
-            AccumulateRange(series.Channels[settings.ChannelBName], TimeSeries.MissingValue, ref channelBMin, ref channelBMax);
-        }
-
-        if (double.IsPositiveInfinity(channelAMin) || double.IsPositiveInfinity(channelBMin))
+        if (candidateSeries.Count == 0)
         {
             return PersistAndReturn(
                 fileSystem, projectFolder, analysisName, settings,
@@ -172,8 +161,10 @@ internal static class AnalysisService
                 totalPatientCount, 0, unmatchedCount, ambiguousCount);
         }
 
-        var channelABinEdges = GridBinning.ComputeBinEdges(channelAMin, channelAMax, settings.ChannelABinSize);
-        var channelBBinEdges = GridBinning.ComputeBinEdges(channelBMin, channelBMax, settings.ChannelBBinSize);
+        var channelABinEdges = GridBinning.ComputeBinEdges(
+            settings.ChannelARangeStart, settings.ChannelARangeEnd, settings.ChannelABinWidth);
+        var channelBBinEdges = GridBinning.ComputeBinEdges(
+            settings.ChannelBRangeStart, settings.ChannelBRangeEnd, settings.ChannelBBinWidth);
         var rowCount = channelBBinEdges.Length - 1;
         var colCount = channelABinEdges.Length - 1;
 
@@ -270,28 +261,6 @@ internal static class AnalysisService
         catch (JsonException)
         {
             return NoGenerationHasRun(projectFolder, analysisName);
-        }
-    }
-
-    private static void AccumulateRange(
-        ImmutableArray<float> values, float missingValue, ref double min, ref double max)
-    {
-        foreach (var value in values)
-        {
-            if (value == missingValue)
-            {
-                continue;
-            }
-
-            if (value < min)
-            {
-                min = value;
-            }
-
-            if (value > max)
-            {
-                max = value;
-            }
         }
     }
 
