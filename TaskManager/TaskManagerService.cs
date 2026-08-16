@@ -174,6 +174,63 @@ internal static class TaskManagerService
         return Task.CompletedTask;
     }
 
+    internal static Task HandleFigureListRequestAsync(FigureListRequest message)
+    {
+        var figureNames = LocateFigures(_workspaceFolder, message.ProjectName);
+
+        var response = new FigureListResponse(message.ProjectName, figureNames);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleCreateFigureRequestAsync(CreateFigureRequest message)
+    {
+        var createdFigure = CreateFigure(_workspaceFolder, message.ProjectName, message.FigureName);
+
+        var response = new CreateFigureResponse(message.FigureName, message.ProjectName, createdFigure);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleFigureLayoutRequestAsync(FigureLayoutRequest message)
+    {
+        var response = FigureService.ReadLayout(_workspaceFolder, message.ProjectName, message.FigureName);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleSaveFigureSizeRequestAsync(SaveFigureSizeRequest message)
+    {
+        var response = FigureService.SaveSize(
+            _workspaceFolder, message.ProjectName, message.FigureName, message.RowCount, message.ColCount);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleAnalysesWithGraphListRequestAsync(AnalysesWithGraphListRequest message)
+    {
+        var analysisNames = AnalysisService.ListAnalysesWithPersistedGraph(_workspaceFolder, message.ProjectName);
+
+        var response = new AnalysesWithGraphListResponse(message.ProjectName, analysisNames);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleCreateFigureGraphRequestAsync(CreateFigureGraphRequest message)
+    {
+        var response = FigureService.CreateGraph(
+            _workspaceFolder, message.ProjectName, message.FigureName, message.RowCount, message.ColCount,
+            message.CellAnalysisNames);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
     private static bool CreateDataset(string? workspaceFolder, string? projectName, string datasetName, string? rawDataFolderPath)
     {
         if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
@@ -387,6 +444,71 @@ internal static class TaskManagerService
         }
 
         return analysisFiles
+            .Select(file => Path.GetFileNameWithoutExtension(file)!)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToImmutableArray();
+    }
+
+    private static bool CreateFigure(string? workspaceFolder, string? projectName, string figureName)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || string.IsNullOrWhiteSpace(projectName) ||
+            string.IsNullOrWhiteSpace(figureName))
+        {
+            return false;
+        }
+
+        var projectFolder = Path.Combine(workspaceFolder, "Projects", projectName);
+        if (!Directory.Exists(projectFolder))
+        {
+            return false;
+        }
+
+        try
+        {
+            var figuresFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Figures");
+            Directory.CreateDirectory(figuresFolder);
+
+            var figureFile = Path.Combine(figuresFolder, figureName + ".omfg");
+            if (File.Exists(figureFile))
+            {
+                return false;
+            }
+
+            using (File.Create(figureFile))
+            {
+            }
+
+            Directory.CreateDirectory(Path.Combine(figuresFolder, figureName));
+
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static ImmutableArray<string> LocateFigures(string? workspaceFolder, string? projectName)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+            string.IsNullOrWhiteSpace(projectName))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var figuresFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Figures");
+        if (!Directory.Exists(figuresFolder))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var figureFiles = Directory.GetFiles(figuresFolder, "*.omfg", SearchOption.TopDirectoryOnly);
+        if (figureFiles.Length == 0)
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        return figureFiles
             .Select(file => Path.GetFileNameWithoutExtension(file)!)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .ToImmutableArray();

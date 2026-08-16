@@ -48,6 +48,24 @@ public static class MessageRouter
             case AnalysisResultResponse analysisResultResponse:
                 ProjectAnalysisContent.Current?.OnAnalysisResultResponseReceived(analysisResultResponse);
                 break;
+            case FigureListResponse figureListResponse:
+                ProjectsPanel.Current?.OnFigureListResponseReceived(figureListResponse);
+                break;
+            case CreateFigureResponse createFigureResponse:
+                ProjectsPanel.Current?.OnCreateFigureResponseReceived(createFigureResponse);
+                break;
+            case FigureLayoutResponse figureLayoutResponse:
+                ProjectFigureContent.Current?.OnFigureLayoutResponseReceived(figureLayoutResponse);
+                break;
+            case SaveFigureSizeResponse saveFigureSizeResponse:
+                ProjectFigureContent.Current?.OnSaveFigureSizeResponseReceived(saveFigureSizeResponse);
+                break;
+            case AnalysesWithGraphListResponse analysesWithGraphListResponse:
+                ProjectFigureSelectGraphsContent.Current?.OnAnalysesWithGraphListResponseReceived(analysesWithGraphListResponse);
+                break;
+            case CreateFigureGraphResponse createFigureGraphResponse:
+                ProjectFigureContent.Current?.OnCreateFigureGraphResponseReceived(createFigureGraphResponse);
+                break;
         }
     }
 }

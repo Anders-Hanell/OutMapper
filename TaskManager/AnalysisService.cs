@@ -9,9 +9,18 @@ using Messages;
 
 namespace TaskManager;
 
+internal readonly record struct PersistedGraphData(
+    bool Found,
+    string? ChannelAName,
+    string? ChannelBName,
+    ImmutableArray<double> ChannelABinEdges,
+    ImmutableArray<double> ChannelBBinEdges,
+    ImmutableArray<string> CellColorsRowMajor);
+
 internal static class AnalysisService
 {
     private const string GenerationResultFileName = "generation-result.json";
+    private const string GraphDataFileName = "graph-data.json";
     private const double ColorScaleMinValue = -0.1;
     private const double ColorScaleMaxValue = 0.1;
 
@@ -220,6 +229,7 @@ internal static class AnalysisService
             cellColors.ToImmutableArray());
 
         WriteSummary(workspaceFolder, projectName, analysisName, response);
+        WriteGraphData(workspaceFolder, projectName, analysisName, response);
         return response;
     }
 
@@ -368,5 +378,102 @@ internal static class AnalysisService
         public string? ChannelBName { get; set; }
         public int MatchedPatientCount { get; set; }
         public int TotalPatientCount { get; set; }
+    }
+
+    private static void WriteGraphData(
+        string workspaceFolder, string projectName, string analysisName, GenerateAnalysisGraphResponse response)
+    {
+        try
+        {
+            var dto = new GraphDataDto
+            {
+                ChannelAName = response.ChannelAName,
+                ChannelBName = response.ChannelBName,
+                ChannelABinEdges = response.ChannelABinEdges.ToArray(),
+                ChannelBBinEdges = response.ChannelBBinEdges.ToArray(),
+                CellColorsRowMajor = response.CellColorsRowMajor.ToArray()
+            };
+
+            var graphDataFilePath = ResolveGraphDataFilePath(workspaceFolder, projectName, analysisName);
+            Directory.CreateDirectory(Path.GetDirectoryName(graphDataFilePath)!);
+            File.WriteAllBytes(graphDataFilePath, JsonSerializer.SerializeToUtf8Bytes(dto));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // The response already carries the original outcome; a failure to persist it is not itself fatal.
+        }
+    }
+
+    internal static PersistedGraphData ReadPersistedGraphData(string? workspaceFolder, string projectName, string analysisName)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceFolder))
+        {
+            return default;
+        }
+
+        var graphDataFilePath = ResolveGraphDataFilePath(workspaceFolder, projectName, analysisName);
+        if (!File.Exists(graphDataFilePath))
+        {
+            return default;
+        }
+
+        try
+        {
+            var dto = JsonSerializer.Deserialize<GraphDataDto>(File.ReadAllBytes(graphDataFilePath));
+            if (dto is null)
+            {
+                return default;
+            }
+
+            return new PersistedGraphData(
+                Found: true,
+                dto.ChannelAName,
+                dto.ChannelBName,
+                dto.ChannelABinEdges.ToImmutableArray(),
+                dto.ChannelBBinEdges.ToImmutableArray(),
+                dto.CellColorsRowMajor.ToImmutableArray());
+        }
+        catch (JsonException)
+        {
+            return default;
+        }
+    }
+
+    internal static ImmutableArray<string> ListAnalysesWithPersistedGraph(string? workspaceFolder, string projectName)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceFolder) || !Directory.Exists(workspaceFolder) ||
+            string.IsNullOrWhiteSpace(projectName))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var analysesFolder = Path.Combine(workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Analyses");
+        if (!Directory.Exists(analysesFolder))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var analysisNames = Directory.GetFiles(analysesFolder, "*.oman", SearchOption.TopDirectoryOnly)
+            .Select(file => Path.GetFileNameWithoutExtension(file)!)
+            .Where(name => !string.IsNullOrWhiteSpace(name));
+
+        return analysisNames
+            .Where(name => ReadPersistedGraphData(workspaceFolder, projectName, name).Found)
+            .ToImmutableArray();
+    }
+
+    private static string ResolveGraphDataFilePath(string workspaceFolder, string projectName, string analysisName)
+    {
+        return Path.Combine(
+            workspaceFolder, "Projects", projectName, "OutMapper_InternalFiles", "Analyses", analysisName, GraphDataFileName);
+    }
+
+    private sealed class GraphDataDto
+    {
+        public string? ChannelAName { get; set; }
+        public string? ChannelBName { get; set; }
+        public double[] ChannelABinEdges { get; set; } = [];
+        public double[] ChannelBBinEdges { get; set; } = [];
+        public string[] CellColorsRowMajor { get; set; } = [];
     }
 }

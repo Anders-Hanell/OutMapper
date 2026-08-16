@@ -26,7 +26,7 @@ A graph visualizing how common a range of values is.
 
 #### Figure
 
-A combination of multiple graphs. The previous R implementation could not create figures; OutMapper is planned to support creating them.
+A combination of multiple graphs, arranged in a fixed grid of rows and columns. Each cell may hold an existing [Analysis](#analysis)'s graph, or be left empty. The previous R implementation could not create figures; OutMapper supports creating them.
 
 ### Organization
 
@@ -79,6 +79,8 @@ At creation, the user only names the Analysis; the method, Cohort, and other set
 The methods themselves ("One-variable", "Two-variable", etc.) and the full set of graph types each can produce are not yet documented in detail.
 
 The creation of a [Graph](#graph) is based on one Cohort.
+
+An Analysis's most recently *successfully* generated graph is what can be assigned into a [Figure](#figure)'s cells — an Analysis that has never generated successfully has no graph available to select.
 
 #### Two-variable
 
