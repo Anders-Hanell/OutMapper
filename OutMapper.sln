@@ -5,9 +5,11 @@ VisualStudioVersion = 17.2.32210.308
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{8BB1CBB1-9E1D-4C6F-8664-F503ACFA2E71}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OutMapper", "OutMapper\OutMapper.csproj", "{A13FD5C2-3AE4-408E-8754-FA232B96C7AE}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Source", "Source", "{2F8E6E1B-6C2A-4B7D-9C3E-1A2B3C4D5E6F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OutMapper.Tests", "OutMapper.Tests\OutMapper.Tests.csproj", "{C4A26D50-9725-4E4F-9C72-0BCF719E38E9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OutMapper", "Source\OutMapper\OutMapper.csproj", "{A13FD5C2-3AE4-408E-8754-FA232B96C7AE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OutMapper.Tests", "Tests\OutMapper.Tests\OutMapper.Tests.csproj", "{C4A26D50-9725-4E4F-9C72-0BCF719E38E9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BADA71DC-7FFD-4EDC-9F28-FB74AEADC713}"
 	ProjectSection(SolutionItems) = preProject
@@ -20,13 +22,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		global.json = global.json
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskManager", "TaskManager\TaskManager.csproj", "{2A16BA0B-1E26-4574-9F91-AEF9B0DBE6B1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskManager", "Source\TaskManager\TaskManager.csproj", "{2A16BA0B-1E26-4574-9F91-AEF9B0DBE6B1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Messages", "Messages\Messages.csproj", "{865BAA98-E531-425E-9DDD-9D569D1297CD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Messages", "Source\Messages\Messages.csproj", "{865BAA98-E531-425E-9DDD-9D569D1297CD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataStructures", "DataStructures\DataStructures.csproj", "{CCBFAC65-B742-47B3-8F1F-9E90FFA4AAF8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataStructures", "Source\DataStructures\DataStructures.csproj", "{CCBFAC65-B742-47B3-8F1F-9E90FFA4AAF8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Algorithms", "Algorithms\Algorithms.csproj", "{08E4602A-1433-49DA-A595-16DA9717BBCF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Algorithms", "Source\Algorithms\Algorithms.csproj", "{08E4602A-1433-49DA-A595-16DA9717BBCF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -234,6 +236,11 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{C4A26D50-9725-4E4F-9C72-0BCF719E38E9} = {8BB1CBB1-9E1D-4C6F-8664-F503ACFA2E71}
+		{A13FD5C2-3AE4-408E-8754-FA232B96C7AE} = {2F8E6E1B-6C2A-4B7D-9C3E-1A2B3C4D5E6F}
+		{2A16BA0B-1E26-4574-9F91-AEF9B0DBE6B1} = {2F8E6E1B-6C2A-4B7D-9C3E-1A2B3C4D5E6F}
+		{865BAA98-E531-425E-9DDD-9D569D1297CD} = {2F8E6E1B-6C2A-4B7D-9C3E-1A2B3C4D5E6F}
+		{CCBFAC65-B742-47B3-8F1F-9E90FFA4AAF8} = {2F8E6E1B-6C2A-4B7D-9C3E-1A2B3C4D5E6F}
+		{08E4602A-1433-49DA-A595-16DA9717BBCF} = {2F8E6E1B-6C2A-4B7D-9C3E-1A2B3C4D5E6F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0513DDF9-08F3-4CCE-90C3-BE985023BF48}

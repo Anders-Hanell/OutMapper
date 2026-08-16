@@ -7,7 +7,7 @@
       "type": "process",
       "args": [
         "build",
-        "${workspaceFolder}/OutMapper/OutMapper.csproj",
+        "${workspaceFolder}/Source/OutMapper/OutMapper.csproj",
         "/property:GenerateFullPaths=true",
         "/property:TargetFramework=net10.0-desktop",
         "/consoleloggerparameters:NoSummary"
@@ -20,7 +20,7 @@
       "type": "process",
       "args": [
         "publish",
-        "${workspaceFolder}/OutMapper/OutMapper.csproj",
+        "${workspaceFolder}/Source/OutMapper/OutMapper.csproj",
         "/property:GenerateFullPaths=true",
         "/property:TargetFramework=net10.0-desktop",
         "/consoleloggerparameters:NoSummary"

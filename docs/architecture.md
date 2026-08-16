@@ -8,6 +8,8 @@ For the product purpose and domain context, see [`app_overview.md`](app_overview
 
 ## Solution structure
 
+Production projects (`OutMapper`, `TaskManager`, `Messages`, `DataStructures`, `Algorithms`) live under `Source/`; the test project (`OutMapper.Tests`) lives under `Tests/`. The `.sln` stays at the repository root.
+
 ### `OutMapper`
 
 The Uno Platform application and presentation layer. It currently owns:

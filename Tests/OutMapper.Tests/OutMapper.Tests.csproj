@@ -15,6 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\OutMapper\OutMapper.csproj" />
+    <ProjectReference Include="..\..\Source\OutMapper\OutMapper.csproj" />
   </ItemGroup>
 </Project>

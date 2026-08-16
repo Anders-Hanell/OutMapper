@@ -35,6 +35,7 @@
   3. Complete sign-in in the browser, then relaunch the app.
 - Launching the app via a plain VS Code `F5`/debug session does not reliably attach it to the MCP-managed DevServer. Prefer starting it with the `uno_app_start` MCP tool instead (pass the `.csproj` path and target framework, e.g. `net10.0-desktop`) — this launches the app under the DevServer directly so runtime tools (screenshot, click, visual tree, etc.) work immediately.
 - `uno_app_start` kills any already-running app instance before launching a new one.
+- If running the app produces an Uno Platform error about a missing SDK, try running "Uno Platform: Select Active Project" from the VS Code Command Palette to reselect the active project — this has resolved the issue before (e.g. after moving projects into the `Source`/`Tests` folders).
 
 ## Product context
 
