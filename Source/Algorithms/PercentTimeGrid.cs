@@ -15,7 +15,9 @@ public static class PercentTimeGrid
         IReadOnlyList<float> channelBValues,
         double[] channelABinEdges,
         double[] channelBBinEdges,
-        float missingValue)
+        float missingValue,
+        bool channelAIsLeftInclusive = true,
+        bool channelBIsLeftInclusive = true)
     {
         var rowCount = channelBBinEdges.Length - 1;
         var colCount = channelABinEdges.Length - 1;
@@ -32,8 +34,8 @@ public static class PercentTimeGrid
                 continue;
             }
 
-            var colIndex = GridBinning.FindBinIndex(channelABinEdges, valueA);
-            var rowIndex = GridBinning.FindBinIndex(channelBBinEdges, valueB);
+            var colIndex = GridBinning.FindBinIndex(channelABinEdges, valueA, channelAIsLeftInclusive);
+            var rowIndex = GridBinning.FindBinIndex(channelBBinEdges, valueB, channelBIsLeftInclusive);
             if (colIndex is not int col || rowIndex is not int row)
             {
                 // Outside the configured range for one of the channels; treated as missing.

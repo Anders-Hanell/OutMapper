@@ -48,6 +48,12 @@ public static class MessageRouter
             case AnalysisResultResponse analysisResultResponse:
                 ProjectAnalysisContent.Current?.OnAnalysisResultResponseReceived(analysisResultResponse);
                 break;
+            case AnalysisSettingsResponse analysisSettingsResponse:
+                ProjectAnalysisSettingsContent.Current?.OnAnalysisSettingsResponseReceived(analysisSettingsResponse);
+                break;
+            case ChannelListResponse channelListResponse:
+                ProjectAnalysisSettingsContent.Current?.OnChannelListResponseReceived(channelListResponse);
+                break;
             case FigureListResponse figureListResponse:
                 ProjectsPanel.Current?.OnFigureListResponseReceived(figureListResponse);
                 break;

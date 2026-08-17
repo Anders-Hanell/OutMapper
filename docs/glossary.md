@@ -84,7 +84,7 @@ An Analysis's most recently *successfully* generated graph is what can be assign
 
 #### Two-variable
 
-The only [Analysis](#analysis) method implemented so far. The user picks a Cohort and two [Channel](#channel)s (by name), plus a range (start, end) and a [Bin](#bin) width for each. Each channel's bin edges span its configured range at that bin width, forming a 2D grid — one axis per channel. A value outside a channel's configured range is treated as missing when computing that channel's bins.
+The only [Analysis](#analysis) method implemented so far. The user picks a Cohort and two [Channel](#channel)s (selected by name from the Cohort's linked data, rather than freely typed), plus a range (start, end), a [Bin](#bin) width, and a bin inclusivity choice for each. Each channel's bin edges span its configured range at that bin width, forming a 2D grid — one axis per channel. A value outside a channel's configured range is treated as missing when computing that channel's bins.
 
 For each grid cell, the association value is the Spearman correlation, across the Cohort's patients, between "percent of that patient's valid monitoring time spent in this cell" and that patient's outcome. Values are mapped to color for the Outcome heatmap using the Jet color scale.
 
@@ -93,3 +93,5 @@ This first implementation assumes all available data is included (no exclusion t
 #### Bin
 
 One interval of a [Channel](#channel)'s configured range, used as an axis unit in an [Analysis](#analysis) grid. A channel's bins all share the same width (configured by the user, along with the range's start and end), except possibly the last bin, which is narrower if the range's size isn't a whole number of bins at that width — a case the settings panel warns about.
+
+Each channel's bins are independently configured as either left-inclusive (each bin's lower edge is included and its upper edge excluded, except the very last bin, which includes both edges — the default) or right-inclusive (the mirror: each bin's upper edge is included and its lower edge excluded, except the very first bin, which includes both edges).

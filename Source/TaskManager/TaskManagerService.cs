@@ -170,6 +170,25 @@ internal static class TaskManagerService
         return Task.CompletedTask;
     }
 
+    internal static Task HandleAnalysisSettingsRequestAsync(AnalysisSettingsRequest message)
+    {
+        var response = AnalysisService.ReadPersistedSettings(
+            LocalFileSystem.Instance, message.ProjectFolder, message.AnalysisName);
+
+        GatewayToOutMapper.SendMessage(response);
+        return Task.CompletedTask;
+    }
+
+    internal static async Task HandleChannelListRequestAsync(ChannelListRequest message)
+    {
+        var channelNames = await AnalysisService.DiscoverChannelNamesAsync(
+            LocalFileSystem.Instance, message.ProjectFolder, message.CohortName);
+
+        var response = new ChannelListResponse(message.ProjectFolder, message.CohortName, channelNames);
+
+        GatewayToOutMapper.SendMessage(response);
+    }
+
     internal static Task HandleFigureListRequestAsync(FigureListRequest message)
     {
         var figureNames = LocateFigures(LocalFileSystem.Instance, message.ProjectFolder);

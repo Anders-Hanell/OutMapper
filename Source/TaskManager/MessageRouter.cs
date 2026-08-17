@@ -23,6 +23,8 @@ internal static class MessageRouter
             CreateAnalysisRequest createAnalysisRequest => TaskManagerService.HandleCreateAnalysisRequestAsync(createAnalysisRequest),
             GenerateAnalysisGraphRequest generateAnalysisGraphRequest => TaskManagerService.HandleGenerateAnalysisGraphRequestAsync(generateAnalysisGraphRequest),
             AnalysisResultRequest analysisResultRequest => TaskManagerService.HandleAnalysisResultRequestAsync(analysisResultRequest),
+            AnalysisSettingsRequest analysisSettingsRequest => TaskManagerService.HandleAnalysisSettingsRequestAsync(analysisSettingsRequest),
+            ChannelListRequest channelListRequest => TaskManagerService.HandleChannelListRequestAsync(channelListRequest),
             FigureListRequest figureListRequest => TaskManagerService.HandleFigureListRequestAsync(figureListRequest),
             CreateFigureRequest createFigureRequest => TaskManagerService.HandleCreateFigureRequestAsync(createFigureRequest),
             FigureLayoutRequest figureLayoutRequest => TaskManagerService.HandleFigureLayoutRequestAsync(figureLayoutRequest),

@@ -21,6 +21,7 @@ internal static class AnalysisService
 {
     private const string GenerationResultFileName = "generation-result.json";
     private const string GraphDataFileName = "graph-data.json";
+    private const string SettingsFileName = "analysis-settings.json";
     private const double ColorScaleMinValue = -0.1;
     private const double ColorScaleMaxValue = 0.1;
 
@@ -31,6 +32,8 @@ internal static class AnalysisService
         {
             return PersistAndReturn(fileSystem, projectFolder, analysisName, settings, "No project was specified.", 0, 0, 0, 0);
         }
+
+        WriteSettings(fileSystem, projectFolder, analysisName, settings);
 
         var cohortFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Cohorts", settings.CohortName);
         var cohortDataFile = Path.Combine(cohortFolder, "Parsed data", "cohort.json");
@@ -64,21 +67,7 @@ internal static class AnalysisService
         }
 
         var totalPatientCount = cohort.PatientIds.Length;
-        var linkedDatasetsFile = Path.Combine(cohortFolder, "linked-datasets.json");
-        var linkedDatasetNames = Array.Empty<string>();
-        if (fileSystem.FileExists(linkedDatasetsFile))
-        {
-            try
-            {
-                linkedDatasetNames =
-                    JsonSerializer.Deserialize<string[]>(await fileSystem.ReadAllBytesAsync(linkedDatasetsFile))
-                    ?? Array.Empty<string>();
-            }
-            catch (JsonException)
-            {
-                linkedDatasetNames = Array.Empty<string>();
-            }
-        }
+        var linkedDatasetNames = await ReadLinkedDatasetNamesAsync(fileSystem, cohortFolder);
 
         if (linkedDatasetNames.Length == 0)
         {
@@ -143,8 +132,8 @@ internal static class AnalysisService
                 continue;
             }
 
-            if (!parsedSeries.Value.Channels.ContainsKey(settings.ChannelAName) ||
-                !parsedSeries.Value.Channels.ContainsKey(settings.ChannelBName))
+            if (!parsedSeries.Value.Channels.ContainsKey(settings.ChannelAGrid.ChannelName) ||
+                !parsedSeries.Value.Channels.ContainsKey(settings.ChannelBGrid.ChannelName))
             {
                 continue;
             }
@@ -162,9 +151,9 @@ internal static class AnalysisService
         }
 
         var channelABinEdges = GridBinning.ComputeBinEdges(
-            settings.ChannelARangeStart, settings.ChannelARangeEnd, settings.ChannelABinWidth);
+            settings.ChannelAGrid.LowerLimit, settings.ChannelAGrid.UpperLimit, settings.ChannelAGrid.BinSize);
         var channelBBinEdges = GridBinning.ComputeBinEdges(
-            settings.ChannelBRangeStart, settings.ChannelBRangeEnd, settings.ChannelBBinWidth);
+            settings.ChannelBGrid.LowerLimit, settings.ChannelBGrid.UpperLimit, settings.ChannelBGrid.BinSize);
         var rowCount = channelBBinEdges.Length - 1;
         var colCount = channelABinEdges.Length - 1;
 
@@ -175,11 +164,13 @@ internal static class AnalysisService
         {
             var series = candidateSeries[i];
             var percentMatrix = PercentTimeGrid.ComputePercentTimeMatrix(
-                series.Channels[settings.ChannelAName],
-                series.Channels[settings.ChannelBName],
+                series.Channels[settings.ChannelAGrid.ChannelName],
+                series.Channels[settings.ChannelBGrid.ChannelName],
                 channelABinEdges,
                 channelBBinEdges,
-                TimeSeries.MissingValue);
+                TimeSeries.MissingValue,
+                settings.ChannelAGrid.IsLeftInclusive,
+                settings.ChannelBGrid.IsLeftInclusive);
 
             if (percentMatrix is null)
             {
@@ -208,8 +199,8 @@ internal static class AnalysisService
             Success: true,
             ErrorMessage: null,
             settings.CohortName,
-            settings.ChannelAName,
-            settings.ChannelBName,
+            settings.ChannelAGrid.ChannelName,
+            settings.ChannelBGrid.ChannelName,
             totalPatientCount,
             matchedMatrices.Count,
             unmatchedCount,
@@ -274,8 +265,8 @@ internal static class AnalysisService
             Success: false,
             errorMessage,
             settings.CohortName,
-            settings.ChannelAName,
-            settings.ChannelBName,
+            settings.ChannelAGrid.ChannelName,
+            settings.ChannelBGrid.ChannelName,
             totalPatientCount,
             matchedPatientCount,
             unmatchedPatientCount,
@@ -441,5 +432,123 @@ internal static class AnalysisService
         public double[] ChannelABinEdges { get; set; } = [];
         public double[] ChannelBBinEdges { get; set; } = [];
         public string[] CellColorsRowMajor { get; set; } = [];
+    }
+
+    private static async Task<string[]> ReadLinkedDatasetNamesAsync(IFileSystem fileSystem, string cohortFolder)
+    {
+        var linkedDatasetsFile = Path.Combine(cohortFolder, "linked-datasets.json");
+        if (!fileSystem.FileExists(linkedDatasetsFile))
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(await fileSystem.ReadAllBytesAsync(linkedDatasetsFile))
+                ?? Array.Empty<string>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private static void WriteSettings(
+        IFileSystem fileSystem, string projectFolder, string analysisName, TwoVariableAnalysisSettings settings)
+    {
+        try
+        {
+            var settingsFilePath = ResolveSettingsFilePath(projectFolder, analysisName);
+            fileSystem.CreateDirectory(Path.GetDirectoryName(settingsFilePath)!);
+            fileSystem.WriteAllBytes(settingsFilePath, settings.ToByteArray().ToArray());
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Persisting the user's settings is best-effort; a failure here must not block generation.
+        }
+    }
+
+    internal static AnalysisSettingsResponse ReadPersistedSettings(
+        IFileSystem fileSystem, string? projectFolder, string analysisName)
+    {
+        if (string.IsNullOrWhiteSpace(projectFolder))
+        {
+            return new AnalysisSettingsResponse(projectFolder ?? string.Empty, analysisName, Found: false, Settings: null);
+        }
+
+        var settingsFilePath = ResolveSettingsFilePath(projectFolder, analysisName);
+        if (!fileSystem.FileExists(settingsFilePath))
+        {
+            return new AnalysisSettingsResponse(projectFolder, analysisName, Found: false, Settings: null);
+        }
+
+        if (TwoVariableAnalysisSettings.FromByteArray(fileSystem.ReadAllBytes(settingsFilePath).ToList())
+            is not Success<TwoVariableAnalysisSettings> success)
+        {
+            return new AnalysisSettingsResponse(projectFolder, analysisName, Found: false, Settings: null);
+        }
+
+        return new AnalysisSettingsResponse(projectFolder, analysisName, Found: true, success.Value);
+    }
+
+    private static string ResolveSettingsFilePath(string projectFolder, string analysisName)
+    {
+        return Path.Combine(projectFolder, "OutMapper_InternalFiles", "Analyses", analysisName, SettingsFileName);
+    }
+
+    internal static async Task<ImmutableArray<string>> DiscoverChannelNamesAsync(
+        IFileSystem fileSystem, string? projectFolder, string cohortName)
+    {
+        if (string.IsNullOrWhiteSpace(projectFolder) || string.IsNullOrWhiteSpace(cohortName))
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var cohortFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Cohorts", cohortName);
+        var linkedDatasetNames = await ReadLinkedDatasetNamesAsync(fileSystem, cohortFolder);
+        if (linkedDatasetNames.Length == 0)
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        var datasetsFolder = Path.Combine(projectFolder, "OutMapper_InternalFiles", "Datasets");
+        var channelNames = new SortedSet<string>(StringComparer.Ordinal);
+
+        foreach (var datasetName in linkedDatasetNames)
+        {
+            var parsedDataFolder = Path.Combine(datasetsFolder, datasetName, "Parsed data");
+            if (!fileSystem.DirectoryExists(parsedDataFolder))
+            {
+                continue;
+            }
+
+            // Only the first patient file per dataset is scanned: channel sets are expected to be
+            // uniform within a dataset, and scanning every patient file would be needlessly slow.
+            var patientFile = fileSystem.GetFiles(parsedDataFolder, "*.json").FirstOrDefault();
+            if (patientFile is null)
+            {
+                continue;
+            }
+
+            byte[] timeSeriesBytes;
+            try
+            {
+                timeSeriesBytes = await fileSystem.ReadAllBytesAsync(patientFile);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            if (TimeSeries.FromByteArray(timeSeriesBytes.ToList()) is Success<TimeSeries> parsedSeries)
+            {
+                foreach (var channelName in parsedSeries.Value.Channels.Keys)
+                {
+                    channelNames.Add(channelName);
+                }
+            }
+        }
+
+        return channelNames.ToImmutableArray();
     }
 }

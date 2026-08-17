@@ -62,10 +62,19 @@ public sealed class ProjectAnalysisContent : Border
         innerGrid.Children.Add(innerSidebar);
         innerGrid.Children.Add(_innerContentArea);
 
-        Child = new StackPanel
+        var outerGrid = new Grid
         {
-            Children = { _nameLabel, innerGrid }
+            RowDefinitions =
+            {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }
+            }
         };
+        Grid.SetRow(innerGrid, 1);
+        outerGrid.Children.Add(_nameLabel);
+        outerGrid.Children.Add(innerGrid);
+
+        Child = outerGrid;
 
         Current = this;
     }
