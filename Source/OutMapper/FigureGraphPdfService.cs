@@ -24,10 +24,12 @@ internal static class FigureGraphPdfService
             return null;
         }
 
-        if (graph.RowCount <= 0 || graph.ColCount <= 0)
+        if (graph.Figure is null)
         {
             return null;
         }
+
+        var figure = graph.Figure;
 
         var outputFolder = Path.Combine(projectFolder, ProjectFolderService.ProjectOutputFolderName);
         fileSystem.CreateDirectory(outputFolder);
@@ -49,8 +51,8 @@ internal static class FigureGraphPdfService
         const float gridTop = gridBottom - graphSize;
         const float captionHeight = 14f;
 
-        var cellOuterWidth = graphSize / graph.ColCount;
-        var cellOuterHeight = graphSize / graph.RowCount;
+        var cellOuterWidth = graphSize / figure.ColCount;
+        var cellOuterHeight = graphSize / figure.RowCount;
 
         using var canvas = document.BeginPage(pageWidth, pageHeight);
         canvas.Clear(SKColors.White);
@@ -71,18 +73,15 @@ internal static class FigureGraphPdfService
 
         using var captionFont = new SKFont { Size = 9 };
 
-        foreach (var cell in graph.Cells)
+        foreach (var cell in figure.Cells)
         {
             var outerLeft = gridLeft + cell.Col * cellOuterWidth;
             var outerTop = gridTop + cell.Row * cellOuterHeight;
             var outerRect = new SKRect(outerLeft, outerTop, outerLeft + cellOuterWidth, outerTop + cellOuterHeight - captionHeight);
 
-            if (cell.HasGraph)
+            if (cell.Graph is not null)
             {
-                var heatmapData = new HeatmapData(
-                    cell.ChannelABinEdges, cell.ChannelBBinEdges, cell.CellColorsRowMajor,
-                    cell.ChannelAName ?? string.Empty, cell.ChannelBName ?? string.Empty);
-                HeatmapDrawing.Draw(canvas, outerRect, heatmapData, drawAxisTickLabels: false, drawAxisTitles: false);
+                HeatmapDrawing.Draw(canvas, outerRect, cell.Graph);
 
                 canvas.DrawText(
                     cell.AnalysisName ?? string.Empty, (outerRect.Left + outerRect.Right) / 2f, outerRect.Bottom + captionHeight - 2f,

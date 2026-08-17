@@ -1,15 +1,8 @@
-using System.Collections.Immutable;
 using System.Globalization;
+using DataStructures;
 using SkiaSharp;
 
 namespace OutMapper;
-
-internal readonly record struct HeatmapData(
-    ImmutableArray<double> ChannelABinEdges,
-    ImmutableArray<double> ChannelBBinEdges,
-    ImmutableArray<string> CellColorsRowMajor,
-    string ChannelAName,
-    string ChannelBName);
 
 /// <summary>
 /// Draws one N x M colored heatmap grid, with optional axis tick labels and axis titles,
@@ -18,14 +11,10 @@ internal readonly record struct HeatmapData(
 /// </summary>
 internal static class HeatmapDrawing
 {
-    internal static void Draw(SKCanvas canvas, SKRect graphArea, HeatmapData data, bool drawAxisTickLabels, bool drawAxisTitles)
+    internal static void Draw(SKCanvas canvas, SKRect graphArea, GraphDrawData data)
     {
-        var rowCount = data.ChannelBBinEdges.Length - 1;
-        var colCount = data.ChannelABinEdges.Length - 1;
-        if (rowCount <= 0 || colCount <= 0)
-        {
-            return;
-        }
+        var rowCount = data.RowCount;
+        var colCount = data.ColCount;
 
         var axisLeft = graphArea.Left;
         var axisTop = graphArea.Top;
@@ -85,7 +74,7 @@ internal static class HeatmapDrawing
             }
         }
 
-        if (drawAxisTickLabels)
+        if (data.DrawAxisTickLabels)
         {
             for (var col = 0; col <= colCount; col++)
             {
@@ -100,7 +89,7 @@ internal static class HeatmapDrawing
             }
         }
 
-        if (drawAxisTitles)
+        if (data.DrawAxisTitles)
         {
             canvas.DrawText(data.ChannelAName, (axisLeft + axisRight) / 2f, axisBottom + 36f, SKTextAlign.Center, titleFont, labelPaint);
 

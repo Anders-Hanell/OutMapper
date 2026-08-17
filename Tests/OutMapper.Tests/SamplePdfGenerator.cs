@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using DataStructures;
 using Messages;
 using TaskManager;
 using Path = System.IO.Path;
@@ -16,21 +17,27 @@ public class SamplePdfGenerator
     public void GenerateSampleAnalysisPdf()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), "OutMapperSamplePdf");
+        var sampleGraph = GraphDrawData.Create(
+            channelAName: "Heart rate",
+            channelBName: "Blood pressure",
+            channelABinEdges: ImmutableArray.Create(0.0, 25.0, 50.0, 75.0, 100.0),
+            channelBBinEdges: ImmutableArray.Create(0.0, 50.0, 100.0),
+            cellColorsRowMajor: ImmutableArray.Create(
+                "#2166AC", "#67A9CF", "#D1E5F0", "#FDDBC7", "#EF8A62", "#B2182B", "#67A9CF", "#2166AC"),
+            drawAxisTickLabels: true,
+            drawAxisTitles: true).Should().BeOfType<Success<GraphDrawData>>().Subject.Value;
+
         var graph = new GenerateAnalysisGraphResponse(
             "SampleProject",
             "SampleAnalysis",
             Success: true,
             ErrorMessage: null,
             CohortName: "SampleCohort",
-            ChannelAName: "Heart rate",
-            ChannelBName: "Blood pressure",
             TotalPatientCount: 42,
             MatchedPatientCount: 40,
             UnmatchedPatientCount: 2,
             AmbiguousPatientCount: 0,
-            ChannelABinEdges: ImmutableArray.Create(0.0, 25.0, 50.0, 75.0, 100.0),
-            ChannelBBinEdges: ImmutableArray.Create(0.0, 50.0, 100.0),
-            CellColorsRowMajor: ImmutableArray.Create("#2166AC", "#67A9CF", "#D1E5F0", "#FDDBC7", "#EF8A62", "#B2182B", "#67A9CF", "#2166AC"));
+            sampleGraph);
 
         var outputFile = AnalysisGraphPdfService.GeneratePdf(
             LocalFileSystem.Instance, outputDirectory, "SampleAnalysis", graph);

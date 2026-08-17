@@ -24,9 +24,7 @@ internal static class AnalysisGraphPdfService
             return null;
         }
 
-        var rowCount = graph.ChannelBBinEdges.Length - 1;
-        var colCount = graph.ChannelABinEdges.Length - 1;
-        if (rowCount <= 0 || colCount <= 0)
+        if (graph.Graph is null)
         {
             return null;
         }
@@ -54,11 +52,7 @@ internal static class AnalysisGraphPdfService
         using var canvas = document.BeginPage(pageWidth, pageHeight);
         canvas.Clear(SKColors.White);
 
-        var heatmapData = new HeatmapData(
-            graph.ChannelABinEdges, graph.ChannelBBinEdges, graph.CellColorsRowMajor, graph.ChannelAName, graph.ChannelBName);
-        HeatmapDrawing.Draw(
-            canvas, new SKRect(axisLeft, axisTop, axisRight, axisBottom), heatmapData,
-            drawAxisTickLabels: true, drawAxisTitles: true);
+        HeatmapDrawing.Draw(canvas, new SKRect(axisLeft, axisTop, axisRight, axisBottom), graph.Graph);
 
         // Graph title
         using var titlePaint = new SKPaint

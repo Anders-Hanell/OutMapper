@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Text.Json;
 
+using DataStructures;
 using Messages;
 
 namespace TaskManager;
@@ -95,15 +96,13 @@ internal static class FigureService
         if (string.IsNullOrWhiteSpace(projectFolder) || string.IsNullOrWhiteSpace(figureName))
         {
             return new CreateFigureGraphResponse(
-                projectFolder ?? string.Empty, figureName, Success: false, "No project or figure was specified.",
-                0, 0, ImmutableArray<FigureCellGraphData>.Empty);
+                projectFolder ?? string.Empty, figureName, Success: false, "No project or figure was specified.", Figure: null);
         }
 
         if (rowCount <= 0 || colCount <= 0 || cellAnalysisNames.Length != rowCount * colCount)
         {
             return new CreateFigureGraphResponse(
-                projectFolder, figureName, Success: false, "The figure's grid dimensions are invalid.",
-                0, 0, ImmutableArray<FigureCellGraphData>.Empty);
+                projectFolder, figureName, Success: false, "The figure's grid dimensions are invalid.", Figure: null);
         }
 
         var config = new FigureConfigDto
@@ -114,7 +113,7 @@ internal static class FigureService
         };
         WriteConfig(fileSystem, projectFolder, figureName, config);
 
-        var cells = new List<FigureCellGraphData>(rowCount * colCount);
+        var cells = new List<FigureCellDrawData>(rowCount * colCount);
 
         for (var row = 0; row < rowCount; row++)
         {
@@ -122,35 +121,41 @@ internal static class FigureService
             {
                 var analysisName = cellAnalysisNames[row * colCount + col];
 
+                Result<FigureCellDrawData> cellResult;
                 if (string.IsNullOrWhiteSpace(analysisName))
                 {
-                    cells.Add(new FigureCellGraphData(
-                        row, col, AnalysisName: null, HasGraph: false, ErrorMessage: null,
-                        ChannelAName: null, ChannelBName: null,
-                        ImmutableArray<double>.Empty, ImmutableArray<double>.Empty, ImmutableArray<string>.Empty));
-                    continue;
+                    cellResult = FigureCellDrawData.Create(row, col, analysisName: null, graph: null, errorMessage: null);
                 }
-
-                var graphData = AnalysisService.ReadPersistedGraphData(fileSystem, projectFolder, analysisName);
-                if (!graphData.Found)
+                else
                 {
-                    cells.Add(new FigureCellGraphData(
-                        row, col, analysisName, HasGraph: false,
-                        $"No persisted graph data for analysis '{analysisName}'.",
-                        ChannelAName: null, ChannelBName: null,
-                        ImmutableArray<double>.Empty, ImmutableArray<double>.Empty, ImmutableArray<string>.Empty));
-                    continue;
+                    var graph = AnalysisService.ReadPersistedGraphData(fileSystem, projectFolder, analysisName);
+                    cellResult = graph is null
+                        ? FigureCellDrawData.Create(
+                            row, col, analysisName, graph: null, $"No persisted graph data for analysis '{analysisName}'.")
+                        : FigureCellDrawData.Create(row, col, analysisName, graph, errorMessage: null);
                 }
 
-                cells.Add(new FigureCellGraphData(
-                    row, col, analysisName, HasGraph: true, ErrorMessage: null,
-                    graphData.ChannelAName, graphData.ChannelBName,
-                    graphData.ChannelABinEdges, graphData.ChannelBBinEdges, graphData.CellColorsRowMajor));
+                switch (cellResult)
+                {
+                    case Success<FigureCellDrawData> success:
+                        cells.Add(success.Value);
+                        break;
+                    case Failure<FigureCellDrawData> failure:
+                        return new CreateFigureGraphResponse(projectFolder, figureName, Success: false, failure.Error, Figure: null);
+                }
             }
         }
 
-        return new CreateFigureGraphResponse(
-            projectFolder, figureName, Success: true, ErrorMessage: null, rowCount, colCount, cells.ToImmutableArray());
+        switch (FigureDrawData.Create(rowCount, colCount, cells))
+        {
+            case Success<FigureDrawData> success:
+                return new CreateFigureGraphResponse(projectFolder, figureName, Success: true, ErrorMessage: null, success.Value);
+            case Failure<FigureDrawData> failure:
+                return new CreateFigureGraphResponse(projectFolder, figureName, Success: false, failure.Error, Figure: null);
+            default:
+                return new CreateFigureGraphResponse(
+                    projectFolder, figureName, Success: false, "Could not build the figure's draw data.", Figure: null);
+        }
     }
 
     private static FigureLayoutResponse NoLayout(string projectFolder, string figureName)

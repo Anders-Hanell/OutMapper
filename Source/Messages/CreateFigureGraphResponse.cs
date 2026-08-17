@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+using DataStructures;
 
 namespace Messages;
 
@@ -7,6 +7,4 @@ public sealed record CreateFigureGraphResponse(
     string FigureName,
     bool Success,
     string? ErrorMessage,
-    int RowCount,
-    int ColCount,
-    ImmutableArray<FigureCellGraphData> Cells) : Message;
+    FigureDrawData? Figure) : Message;

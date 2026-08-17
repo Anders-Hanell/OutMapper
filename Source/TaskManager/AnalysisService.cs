@@ -9,14 +9,6 @@ using Messages;
 
 namespace TaskManager;
 
-internal readonly record struct PersistedGraphData(
-    bool Found,
-    string? ChannelAName,
-    string? ChannelBName,
-    ImmutableArray<double> ChannelABinEdges,
-    ImmutableArray<double> ChannelBBinEdges,
-    ImmutableArray<string> CellColorsRowMajor);
-
 internal static class AnalysisService
 {
     private const string GenerationResultFileName = "generation-result.json";
@@ -193,24 +185,41 @@ internal static class AnalysisService
             }
         }
 
+        GraphDrawData graphDrawData;
+        switch (GraphDrawData.Create(
+            settings.ChannelAGrid.ChannelName, settings.ChannelBGrid.ChannelName,
+            channelABinEdges.ToImmutableArray(), channelBBinEdges.ToImmutableArray(), cellColors.ToImmutableArray(),
+            // Standalone-graph default: full chrome. Preserves today's AnalysisGraphPdfService behavior; a
+            // GraphDrawData embedded in a Figure cell is drawn with these same flags, no longer hardcoded off.
+            drawAxisTickLabels: true, drawAxisTitles: true))
+        {
+            case Success<GraphDrawData> success:
+                graphDrawData = success.Value;
+                break;
+            case Failure<GraphDrawData> failure:
+                return PersistAndReturn(
+                    fileSystem, projectFolder, analysisName, settings, failure.Error,
+                    totalPatientCount, matchedMatrices.Count, unmatchedCount, ambiguousCount);
+            default:
+                return PersistAndReturn(
+                    fileSystem, projectFolder, analysisName, settings, "Could not build the graph data.",
+                    totalPatientCount, matchedMatrices.Count, unmatchedCount, ambiguousCount);
+        }
+
         var response = new GenerateAnalysisGraphResponse(
             projectFolder,
             analysisName,
             Success: true,
             ErrorMessage: null,
             settings.CohortName,
-            settings.ChannelAGrid.ChannelName,
-            settings.ChannelBGrid.ChannelName,
             totalPatientCount,
             matchedMatrices.Count,
             unmatchedCount,
             ambiguousCount,
-            channelABinEdges.ToImmutableArray(),
-            channelBBinEdges.ToImmutableArray(),
-            cellColors.ToImmutableArray());
+            graphDrawData);
 
-        WriteSummary(fileSystem, projectFolder, analysisName, response);
-        WriteGraphData(fileSystem, projectFolder, analysisName, response);
+        WriteSummary(fileSystem, projectFolder, analysisName, settings, response);
+        WriteGraphData(fileSystem, projectFolder, analysisName, graphDrawData);
         return response;
     }
 
@@ -265,19 +274,15 @@ internal static class AnalysisService
             Success: false,
             errorMessage,
             settings.CohortName,
-            settings.ChannelAGrid.ChannelName,
-            settings.ChannelBGrid.ChannelName,
             totalPatientCount,
             matchedPatientCount,
             unmatchedPatientCount,
             ambiguousPatientCount,
-            ImmutableArray<double>.Empty,
-            ImmutableArray<double>.Empty,
-            ImmutableArray<string>.Empty);
+            Graph: null);
 
         if (!string.IsNullOrWhiteSpace(projectFolder))
         {
-            WriteSummary(fileSystem, projectFolder, analysisName, response);
+            WriteSummary(fileSystem, projectFolder, analysisName, settings, response);
         }
 
         return response;
@@ -292,7 +297,8 @@ internal static class AnalysisService
     }
 
     private static void WriteSummary(
-        IFileSystem fileSystem, string projectFolder, string analysisName, GenerateAnalysisGraphResponse response)
+        IFileSystem fileSystem, string projectFolder, string analysisName, TwoVariableAnalysisSettings settings,
+        GenerateAnalysisGraphResponse response)
     {
         try
         {
@@ -303,8 +309,8 @@ internal static class AnalysisService
                 Success = response.Success,
                 ErrorMessage = response.ErrorMessage,
                 CohortName = response.CohortName,
-                ChannelAName = response.ChannelAName,
-                ChannelBName = response.ChannelBName,
+                ChannelAName = settings.ChannelAGrid.ChannelName,
+                ChannelBName = settings.ChannelBGrid.ChannelName,
                 MatchedPatientCount = response.MatchedPatientCount,
                 TotalPatientCount = response.TotalPatientCount
             };
@@ -338,22 +344,13 @@ internal static class AnalysisService
     }
 
     private static void WriteGraphData(
-        IFileSystem fileSystem, string projectFolder, string analysisName, GenerateAnalysisGraphResponse response)
+        IFileSystem fileSystem, string projectFolder, string analysisName, GraphDrawData graph)
     {
         try
         {
-            var dto = new GraphDataDto
-            {
-                ChannelAName = response.ChannelAName,
-                ChannelBName = response.ChannelBName,
-                ChannelABinEdges = response.ChannelABinEdges.ToArray(),
-                ChannelBBinEdges = response.ChannelBBinEdges.ToArray(),
-                CellColorsRowMajor = response.CellColorsRowMajor.ToArray()
-            };
-
             var graphDataFilePath = ResolveGraphDataFilePath(projectFolder, analysisName);
             fileSystem.CreateDirectory(Path.GetDirectoryName(graphDataFilePath)!);
-            fileSystem.WriteAllBytes(graphDataFilePath, JsonSerializer.SerializeToUtf8Bytes(dto));
+            fileSystem.WriteAllBytes(graphDataFilePath, graph.ToByteArray().ToArray());
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -361,40 +358,23 @@ internal static class AnalysisService
         }
     }
 
-    internal static PersistedGraphData ReadPersistedGraphData(
+    internal static GraphDrawData? ReadPersistedGraphData(
         IFileSystem fileSystem, string? projectFolder, string analysisName)
     {
         if (string.IsNullOrWhiteSpace(projectFolder))
         {
-            return default;
+            return null;
         }
 
         var graphDataFilePath = ResolveGraphDataFilePath(projectFolder, analysisName);
         if (!fileSystem.FileExists(graphDataFilePath))
         {
-            return default;
+            return null;
         }
 
-        try
-        {
-            var dto = JsonSerializer.Deserialize<GraphDataDto>(fileSystem.ReadAllBytes(graphDataFilePath));
-            if (dto is null)
-            {
-                return default;
-            }
-
-            return new PersistedGraphData(
-                Found: true,
-                dto.ChannelAName,
-                dto.ChannelBName,
-                dto.ChannelABinEdges.ToImmutableArray(),
-                dto.ChannelBBinEdges.ToImmutableArray(),
-                dto.CellColorsRowMajor.ToImmutableArray());
-        }
-        catch (JsonException)
-        {
-            return default;
-        }
+        return GraphDrawData.FromByteArray(fileSystem.ReadAllBytes(graphDataFilePath).ToList()) is Success<GraphDrawData> success
+            ? success.Value
+            : null;
     }
 
     internal static ImmutableArray<string> ListAnalysesWithPersistedGraph(
@@ -416,22 +396,13 @@ internal static class AnalysisService
             .Where(name => !string.IsNullOrWhiteSpace(name));
 
         return analysisNames
-            .Where(name => ReadPersistedGraphData(fileSystem, projectFolder, name).Found)
+            .Where(name => ReadPersistedGraphData(fileSystem, projectFolder, name) is not null)
             .ToImmutableArray();
     }
 
     private static string ResolveGraphDataFilePath(string projectFolder, string analysisName)
     {
         return Path.Combine(projectFolder, "OutMapper_InternalFiles", "Analyses", analysisName, GraphDataFileName);
-    }
-
-    private sealed class GraphDataDto
-    {
-        public string? ChannelAName { get; set; }
-        public string? ChannelBName { get; set; }
-        public double[] ChannelABinEdges { get; set; } = [];
-        public double[] ChannelBBinEdges { get; set; } = [];
-        public string[] CellColorsRowMajor { get; set; } = [];
     }
 
     private static async Task<string[]> ReadLinkedDatasetNamesAsync(IFileSystem fileSystem, string cohortFolder)

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using DataStructures;
 using Messages;
 using TestSupport;
 using Path = System.IO.Path;
@@ -7,6 +8,16 @@ namespace OutMapper.Tests;
 
 public class AnalysisGraphPdfServiceTests
 {
+    private static GraphDrawData SampleGraph() =>
+        GraphDrawData.Create(
+            channelAName: "A",
+            channelBName: "B",
+            channelABinEdges: ImmutableArray.Create(0.0, 1.0),
+            channelBBinEdges: ImmutableArray.Create(0.0, 1.0),
+            cellColorsRowMajor: ImmutableArray.Create("#FF0000"),
+            drawAxisTickLabels: true,
+            drawAxisTitles: true).Should().BeOfType<Success<GraphDrawData>>().Subject.Value;
+
     [Fact]
     public void GeneratePdf_writes_a_pdf_file_to_the_project_output_folder()
     {
@@ -20,15 +31,11 @@ public class AnalysisGraphPdfServiceTests
             Success: true,
             ErrorMessage: null,
             CohortName: "MyCohort",
-            ChannelAName: "A",
-            ChannelBName: "B",
             TotalPatientCount: 10,
             MatchedPatientCount: 10,
             UnmatchedPatientCount: 0,
             AmbiguousPatientCount: 0,
-            ChannelABinEdges: ImmutableArray.Create(0.0, 1.0),
-            ChannelBBinEdges: ImmutableArray.Create(0.0, 1.0),
-            CellColorsRowMajor: ImmutableArray.Create("#FF0000"));
+            SampleGraph());
 
         var outputFile = AnalysisGraphPdfService.GeneratePdf(fileSystem, projectFolder, analysisName, graph);
 
@@ -50,10 +57,8 @@ public class AnalysisGraphPdfServiceTests
             fileSystem, projectFolder: null, "MyAnalysis",
             new GenerateAnalysisGraphResponse(
                 "MyProject", "MyAnalysis", Success: true, ErrorMessage: null, CohortName: "MyCohort",
-                ChannelAName: "A", ChannelBName: "B", TotalPatientCount: 0, MatchedPatientCount: 0,
-                UnmatchedPatientCount: 0, AmbiguousPatientCount: 0,
-                ChannelABinEdges: ImmutableArray.Create(0.0, 1.0), ChannelBBinEdges: ImmutableArray.Create(0.0, 1.0),
-                CellColorsRowMajor: ImmutableArray.Create("#FF0000")));
+                TotalPatientCount: 0, MatchedPatientCount: 0, UnmatchedPatientCount: 0, AmbiguousPatientCount: 0,
+                SampleGraph()));
 
         outputFile.Should().BeNull();
     }

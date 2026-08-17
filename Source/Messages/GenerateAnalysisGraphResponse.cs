@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+using DataStructures;
 
 namespace Messages;
 
@@ -8,12 +8,8 @@ public sealed record GenerateAnalysisGraphResponse(
     bool Success,
     string? ErrorMessage,
     string CohortName,
-    string ChannelAName,
-    string ChannelBName,
     int TotalPatientCount,
     int MatchedPatientCount,
     int UnmatchedPatientCount,
     int AmbiguousPatientCount,
-    ImmutableArray<double> ChannelABinEdges,
-    ImmutableArray<double> ChannelBBinEdges,
-    ImmutableArray<string> CellColorsRowMajor) : Message;
+    GraphDrawData? Graph) : Message;

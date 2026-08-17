@@ -53,6 +53,46 @@ public class AnalysisServiceTests
     }
 
     [Fact]
+    public async Task GenerateGraphAsync_persists_graph_data_with_full_chrome_by_default()
+    {
+        var fileSystem = new InMemoryFileSystem();
+        fileSystem.CreateDirectory(ProjectFolder);
+        var settings = Settings("Cohort1");
+
+        var cohort = Cohort.Create(new[] { "patient1" }, new[] { "1.0" })
+            .Should().BeOfType<Success<Cohort>>().Subject.Value;
+        fileSystem.WriteAllBytes(
+            Path.Combine(ProjectFolder, "OutMapper_InternalFiles", "Cohorts", "Cohort1", "Parsed data", "cohort.json"),
+            cohort.ToByteArray().ToArray());
+        fileSystem.WriteAllBytes(
+            Path.Combine(ProjectFolder, "OutMapper_InternalFiles", "Cohorts", "Cohort1", "linked-datasets.json"),
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new[] { "Dataset1" }));
+
+        var series = TimeSeries.Create(
+            new List<DateTime> { new(2020, 1, 1) },
+            new Dictionary<string, IReadOnlyList<float>>
+            {
+                ["ICP"] = new List<float> { 5f },
+                ["PRx"] = new List<float> { 0f }
+            }).Should().BeOfType<Success<TimeSeries>>().Subject.Value;
+        fileSystem.WriteAllBytes(
+            Path.Combine(ProjectFolder, "OutMapper_InternalFiles", "Datasets", "Dataset1", "Parsed data", "patient1.json"),
+            series.ToByteArray().ToArray());
+
+        var response = await AnalysisService.GenerateGraphAsync(fileSystem, ProjectFolder, "MyAnalysis", settings);
+
+        response.Success.Should().BeTrue();
+        response.Graph.Should().NotBeNull();
+        response.Graph!.DrawAxisTickLabels.Should().BeTrue();
+        response.Graph.DrawAxisTitles.Should().BeTrue();
+
+        var persistedGraph = AnalysisService.ReadPersistedGraphData(fileSystem, ProjectFolder, "MyAnalysis");
+        persistedGraph.Should().NotBeNull();
+        persistedGraph!.DrawAxisTickLabels.Should().BeTrue();
+        persistedGraph.DrawAxisTitles.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task DiscoverChannelNamesAsync_returns_the_sorted_union_of_channel_names_across_linked_datasets()
     {
         var fileSystem = new InMemoryFileSystem();

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using DataStructures;
 using SkiaSharp;
 
 namespace OutMapper.Tests;
@@ -12,14 +13,16 @@ public class HeatmapDrawingTests
         var canvas = surface.Canvas;
         canvas.Clear(SKColors.White);
 
-        var data = new HeatmapData(
-            ChannelABinEdges: ImmutableArray.Create(0.0, 1.0),
-            ChannelBBinEdges: ImmutableArray.Create(0.0, 1.0),
-            CellColorsRowMajor: ImmutableArray.Create("#FF0000"),
-            ChannelAName: "A",
-            ChannelBName: "B");
+        var data = GraphDrawData.Create(
+            channelAName: "A",
+            channelBName: "B",
+            channelABinEdges: ImmutableArray.Create(0.0, 1.0),
+            channelBBinEdges: ImmutableArray.Create(0.0, 1.0),
+            cellColorsRowMajor: ImmutableArray.Create("#FF0000"),
+            drawAxisTickLabels: false,
+            drawAxisTitles: false).Should().BeOfType<Success<GraphDrawData>>().Subject.Value;
 
-        HeatmapDrawing.Draw(canvas, new SKRect(0, 0, 100, 100), data, drawAxisTickLabels: false, drawAxisTitles: false);
+        HeatmapDrawing.Draw(canvas, new SKRect(0, 0, 100, 100), data);
 
         using var image = surface.Snapshot();
         using var bitmap = SKBitmap.FromImage(image);
@@ -35,14 +38,16 @@ public class HeatmapDrawingTests
         var canvas = surface.Canvas;
         canvas.Clear(SKColors.Black);
 
-        var data = new HeatmapData(
-            ChannelABinEdges: ImmutableArray.Create(0.0, 1.0),
-            ChannelBBinEdges: ImmutableArray.Create(0.0, 1.0),
-            CellColorsRowMajor: ImmutableArray.Create(string.Empty),
-            ChannelAName: "A",
-            ChannelBName: "B");
+        var data = GraphDrawData.Create(
+            channelAName: "A",
+            channelBName: "B",
+            channelABinEdges: ImmutableArray.Create(0.0, 1.0),
+            channelBBinEdges: ImmutableArray.Create(0.0, 1.0),
+            cellColorsRowMajor: ImmutableArray.Create(string.Empty),
+            drawAxisTickLabels: false,
+            drawAxisTitles: false).Should().BeOfType<Success<GraphDrawData>>().Subject.Value;
 
-        HeatmapDrawing.Draw(canvas, new SKRect(0, 0, 100, 100), data, drawAxisTickLabels: false, drawAxisTitles: false);
+        HeatmapDrawing.Draw(canvas, new SKRect(0, 0, 100, 100), data);
 
         using var image = surface.Snapshot();
         using var bitmap = SKBitmap.FromImage(image);
