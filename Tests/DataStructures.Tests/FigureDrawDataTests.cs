@@ -4,37 +4,28 @@ namespace DataStructures.Tests;
 
 public class FigureDrawDataTests
 {
-    private static FigureCellDrawData EmptyCell(int row, int col)
+    private static GraphDrawData Graph()
     {
-        return FigureCellDrawData.Create(row, col, analysisName: null, graph: null, errorMessage: null)
-            .Should().BeOfType<Success<FigureCellDrawData>>().Subject.Value;
-    }
-
-    private static FigureCellDrawData GraphCell(int row, int col)
-    {
-        var graph = GraphDrawData.Create(
+        return GraphDrawData.Create(
             "ICP", "PRx", ImmutableArray.Create(0.0, 10.0), ImmutableArray.Create(-1.0, 1.0),
             ImmutableArray.Create("#FF0000"), drawAxisTickLabels: true, drawAxisTitles: false)
             .Should().BeOfType<Success<GraphDrawData>>().Subject.Value;
-
-        return FigureCellDrawData.Create(row, col, "MyAnalysis", graph, errorMessage: null)
-            .Should().BeOfType<Success<FigureCellDrawData>>().Subject.Value;
     }
 
     [Fact]
     public void Create_succeeds_for_a_full_grid_of_cells()
     {
-        var cells = new[] { EmptyCell(0, 0), GraphCell(0, 1) };
+        var figure = FigureDrawData.Create(1, 2, new[] { false, true }, new[] { Graph() })
+            .Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
 
-        var figure = FigureDrawData.Create(1, 2, cells).Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
-
-        figure.Cells.Should().HaveCount(2);
+        figure.CellHasGraph.Should().Equal(false, true);
+        figure.Graphs.Should().HaveCount(1);
     }
 
     [Fact]
     public void Create_fails_when_row_count_is_not_positive()
     {
-        var result = FigureDrawData.Create(0, 1, new[] { EmptyCell(0, 0) });
+        var result = FigureDrawData.Create(0, 1, new[] { false }, Array.Empty<GraphDrawData>());
 
         result.Should().BeOfType<Failure<FigureDrawData>>();
     }
@@ -42,31 +33,23 @@ public class FigureDrawDataTests
     [Fact]
     public void Create_fails_when_column_count_is_not_positive()
     {
-        var result = FigureDrawData.Create(1, 0, new[] { EmptyCell(0, 0) });
+        var result = FigureDrawData.Create(1, 0, new[] { false }, Array.Empty<GraphDrawData>());
 
         result.Should().BeOfType<Failure<FigureDrawData>>();
     }
 
     [Fact]
-    public void Create_fails_when_the_cell_count_does_not_match_the_grid_size()
+    public void Create_fails_when_the_cell_flag_count_does_not_match_the_grid_size()
     {
-        var result = FigureDrawData.Create(1, 2, new[] { EmptyCell(0, 0) });
+        var result = FigureDrawData.Create(1, 2, new[] { false }, Array.Empty<GraphDrawData>());
 
         result.Should().BeOfType<Failure<FigureDrawData>>();
     }
 
     [Fact]
-    public void Create_fails_when_a_cell_is_outside_the_grid()
+    public void Create_fails_when_the_graph_count_does_not_match_the_number_of_flagged_cells()
     {
-        var result = FigureDrawData.Create(1, 1, new[] { EmptyCell(0, 5) });
-
-        result.Should().BeOfType<Failure<FigureDrawData>>();
-    }
-
-    [Fact]
-    public void Create_fails_when_two_cells_share_the_same_position()
-    {
-        var result = FigureDrawData.Create(1, 2, new[] { EmptyCell(0, 0), EmptyCell(0, 0) });
+        var result = FigureDrawData.Create(1, 2, new[] { false, true }, Array.Empty<GraphDrawData>());
 
         result.Should().BeOfType<Failure<FigureDrawData>>();
     }
@@ -74,7 +57,7 @@ public class FigureDrawDataTests
     [Fact]
     public void ToByteArray_and_FromByteArray_round_trips_a_mix_of_empty_and_graph_cells()
     {
-        var original = FigureDrawData.Create(1, 2, new[] { EmptyCell(0, 0), GraphCell(0, 1) })
+        var original = FigureDrawData.Create(1, 2, new[] { false, true }, new[] { Graph() })
             .Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
 
         var roundTripped = FigureDrawData.FromByteArray(original.ToByteArray())
@@ -82,10 +65,9 @@ public class FigureDrawDataTests
 
         roundTripped.RowCount.Should().Be(1);
         roundTripped.ColCount.Should().Be(2);
-        roundTripped.Cells.Should().HaveCount(2);
-        roundTripped.Cells[0].HasGraph.Should().BeFalse();
-        roundTripped.Cells[1].HasGraph.Should().BeTrue();
-        roundTripped.Cells[1].Graph!.DrawAxisTickLabels.Should().BeTrue();
-        roundTripped.Cells[1].Graph!.DrawAxisTitles.Should().BeFalse();
+        roundTripped.CellHasGraph.Should().Equal(false, true);
+        roundTripped.Graphs.Should().HaveCount(1);
+        roundTripped.Graphs[0].DrawAxisTickLabels.Should().BeTrue();
+        roundTripped.Graphs[0].DrawAxisTitles.Should().BeFalse();
     }
 }

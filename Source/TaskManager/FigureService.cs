@@ -113,7 +113,8 @@ internal static class FigureService
         };
         WriteConfig(fileSystem, projectFolder, figureName, config);
 
-        var cells = new List<FigureCellDrawData>(rowCount * colCount);
+        var cellHasGraph = new List<bool>(rowCount * colCount);
+        var graphs = new List<GraphDrawData>();
 
         for (var row = 0; row < rowCount; row++)
         {
@@ -121,32 +122,27 @@ internal static class FigureService
             {
                 var analysisName = cellAnalysisNames[row * colCount + col];
 
-                Result<FigureCellDrawData> cellResult;
                 if (string.IsNullOrWhiteSpace(analysisName))
                 {
-                    cellResult = FigureCellDrawData.Create(row, col, analysisName: null, graph: null, errorMessage: null);
+                    cellHasGraph.Add(false);
                 }
                 else
                 {
                     var graph = AnalysisService.ReadPersistedGraphData(fileSystem, projectFolder, analysisName);
-                    cellResult = graph is null
-                        ? FigureCellDrawData.Create(
-                            row, col, analysisName, graph: null, $"No persisted graph data for analysis '{analysisName}'.")
-                        : FigureCellDrawData.Create(row, col, analysisName, graph, errorMessage: null);
-                }
+                    if (graph is null)
+                    {
+                        return new CreateFigureGraphResponse(
+                            projectFolder, figureName, Success: false,
+                            $"No persisted graph data for analysis '{analysisName}'.", Figure: null);
+                    }
 
-                switch (cellResult)
-                {
-                    case Success<FigureCellDrawData> success:
-                        cells.Add(success.Value);
-                        break;
-                    case Failure<FigureCellDrawData> failure:
-                        return new CreateFigureGraphResponse(projectFolder, figureName, Success: false, failure.Error, Figure: null);
+                    cellHasGraph.Add(true);
+                    graphs.Add(graph);
                 }
             }
         }
 
-        switch (FigureDrawData.Create(rowCount, colCount, cells))
+        switch (FigureDrawData.Create(rowCount, colCount, cellHasGraph, graphs))
         {
             case Success<FigureDrawData> success:
                 return new CreateFigureGraphResponse(projectFolder, figureName, Success: true, ErrorMessage: null, success.Value);

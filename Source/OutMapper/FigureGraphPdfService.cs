@@ -49,7 +49,6 @@ internal static class FigureGraphPdfService
         const float gridLeft = margin + 40f;
         const float gridBottom = pageHeight - margin - 24f;
         const float gridTop = gridBottom - graphSize;
-        const float captionHeight = 14f;
 
         var cellOuterWidth = graphSize / figure.ColCount;
         var cellOuterHeight = graphSize / figure.RowCount;
@@ -65,27 +64,19 @@ internal static class FigureGraphPdfService
             Style = SKPaintStyle.Stroke
         };
 
-        using var captionPaint = new SKPaint
+        var graphIndex = 0;
+        for (var index = 0; index < figure.CellHasGraph.Length; index++)
         {
-            Color = SKColors.Black,
-            IsAntialias = true
-        };
+            var row = index / figure.ColCount;
+            var col = index % figure.ColCount;
+            var outerLeft = gridLeft + col * cellOuterWidth;
+            var outerTop = gridTop + row * cellOuterHeight;
+            var outerRect = new SKRect(outerLeft, outerTop, outerLeft + cellOuterWidth, outerTop + cellOuterHeight);
 
-        using var captionFont = new SKFont { Size = 9 };
-
-        foreach (var cell in figure.Cells)
-        {
-            var outerLeft = gridLeft + cell.Col * cellOuterWidth;
-            var outerTop = gridTop + cell.Row * cellOuterHeight;
-            var outerRect = new SKRect(outerLeft, outerTop, outerLeft + cellOuterWidth, outerTop + cellOuterHeight - captionHeight);
-
-            if (cell.Graph is not null)
+            if (figure.CellHasGraph[index])
             {
-                HeatmapDrawing.Draw(canvas, outerRect, cell.Graph);
-
-                canvas.DrawText(
-                    cell.AnalysisName ?? string.Empty, (outerRect.Left + outerRect.Right) / 2f, outerRect.Bottom + captionHeight - 2f,
-                    SKTextAlign.Center, captionFont, captionPaint);
+                HeatmapDrawing.Draw(canvas, outerRect, figure.Graphs[graphIndex]);
+                graphIndex++;
             }
             else
             {

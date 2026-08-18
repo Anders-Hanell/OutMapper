@@ -4,47 +4,38 @@ using System.Text.Json;
 namespace DataStructures;
 
 /// <summary>
-/// A figure: a RowCount x ColCount grid of graph cells (see <see cref="FigureCellDrawData"/>), each
-/// either holding a validated <see cref="GraphDrawData"/>, an error, or nothing (unassigned).
+/// A figure: a RowCount x ColCount grid of cells, each either holding a validated
+/// <see cref="GraphDrawData"/> or nothing (unassigned). <see cref="CellHasGraph"/> is a row-major mask
+/// (the cell at row R, column C is at index R * ColCount + C) saying which grid positions have a graph;
+/// <see cref="Graphs"/> holds just those graphs, in the same row-major order as their "true" entries in
+/// <see cref="CellHasGraph"/>.
 /// </summary>
 public sealed class FigureDrawData
 {
-    private sealed class CellDto
-    {
-        public int Row { get; set; }
-        public int Col { get; set; }
-        public string? AnalysisName { get; set; }
-        public string? ErrorMessage { get; set; }
-        public bool HasGraph { get; set; }
-        public string GraphChannelAName { get; set; } = "";
-        public string GraphChannelBName { get; set; } = "";
-        public double[] GraphChannelABinEdges { get; set; } = [];
-        public double[] GraphChannelBBinEdges { get; set; } = [];
-        public string[] GraphCellColorsRowMajor { get; set; } = [];
-        public bool GraphDrawAxisTickLabels { get; set; }
-        public bool GraphDrawAxisTitles { get; set; }
-    }
-
     private sealed class DataTransferObject
     {
         public int RowCount { get; set; }
         public int ColCount { get; set; }
-        public List<CellDto> Cells { get; set; } = new();
+        public bool[] CellHasGraph { get; set; } = [];
+        public List<GraphDrawData.DataTransferObject> Graphs { get; set; } = new();
     }
 
-    private FigureDrawData(int rowCount, int colCount, ImmutableArray<FigureCellDrawData> cells)
+    private FigureDrawData(int rowCount, int colCount, ImmutableArray<bool> cellHasGraph, ImmutableArray<GraphDrawData> graphs)
     {
         // Private constructor to make sure object creation goes through Create().
         RowCount = rowCount;
         ColCount = colCount;
-        Cells = cells;
+        CellHasGraph = cellHasGraph;
+        Graphs = graphs;
     }
 
     public int RowCount { get; }
     public int ColCount { get; }
-    public ImmutableArray<FigureCellDrawData> Cells { get; }
+    public ImmutableArray<bool> CellHasGraph { get; }
+    public ImmutableArray<GraphDrawData> Graphs { get; }
 
-    public static Result<FigureDrawData> Create(int rowCount, int colCount, IReadOnlyList<FigureCellDrawData> cells)
+    public static Result<FigureDrawData> Create(
+        int rowCount, int colCount, IReadOnlyList<bool> cellHasGraph, IReadOnlyList<GraphDrawData> graphs)
     {
         if (rowCount <= 0)
         {
@@ -56,28 +47,21 @@ public sealed class FigureDrawData
             return new Failure<FigureDrawData>("Columns must be greater than zero.");
         }
 
-        if (cells.Count != rowCount * colCount)
+        if (cellHasGraph.Count != rowCount * colCount)
         {
             return new Failure<FigureDrawData>(
-                $"Expected {rowCount * colCount} cell(s) for a {rowCount} x {colCount} grid but got {cells.Count}.");
+                $"Expected {rowCount * colCount} cell flag(s) for a {rowCount} x {colCount} grid but got {cellHasGraph.Count}.");
         }
 
-        var seenPositions = new HashSet<(int Row, int Col)>();
-        foreach (var cell in cells)
+        var expectedGraphCount = cellHasGraph.Count(hasGraph => hasGraph);
+        if (graphs.Count != expectedGraphCount)
         {
-            if (cell.Row >= rowCount || cell.Col >= colCount)
-            {
-                return new Failure<FigureDrawData>(
-                    $"Cell at row {cell.Row}, column {cell.Col} is outside the {rowCount} x {colCount} grid.");
-            }
-
-            if (!seenPositions.Add((cell.Row, cell.Col)))
-            {
-                return new Failure<FigureDrawData>($"Cell at row {cell.Row}, column {cell.Col} is defined more than once.");
-            }
+            return new Failure<FigureDrawData>(
+                $"Expected {expectedGraphCount} assigned graph(s) but got {graphs.Count}.");
         }
 
-        return new Success<FigureDrawData>(new FigureDrawData(rowCount, colCount, cells.ToImmutableArray()));
+        return new Success<FigureDrawData>(
+            new FigureDrawData(rowCount, colCount, cellHasGraph.ToImmutableArray(), graphs.ToImmutableArray()));
     }
 
     public List<byte> ToByteArray()
@@ -86,21 +70,8 @@ public sealed class FigureDrawData
         {
             RowCount = RowCount,
             ColCount = ColCount,
-            Cells = Cells.Select(cell => new CellDto
-            {
-                Row = cell.Row,
-                Col = cell.Col,
-                AnalysisName = cell.AnalysisName,
-                ErrorMessage = cell.ErrorMessage,
-                HasGraph = cell.Graph is not null,
-                GraphChannelAName = cell.Graph?.ChannelAName ?? "",
-                GraphChannelBName = cell.Graph?.ChannelBName ?? "",
-                GraphChannelABinEdges = cell.Graph?.ChannelABinEdges.ToArray() ?? [],
-                GraphChannelBBinEdges = cell.Graph?.ChannelBBinEdges.ToArray() ?? [],
-                GraphCellColorsRowMajor = cell.Graph?.CellColorsRowMajor.ToArray() ?? [],
-                GraphDrawAxisTickLabels = cell.Graph?.DrawAxisTickLabels ?? false,
-                GraphDrawAxisTitles = cell.Graph?.DrawAxisTitles ?? false
-            }).ToList()
+            CellHasGraph = CellHasGraph.ToArray(),
+            Graphs = Graphs.Select(graph => graph.ToDto()).ToList()
         };
 
         return JsonSerializer.SerializeToUtf8Bytes(dto).ToList();
@@ -123,39 +94,21 @@ public sealed class FigureDrawData
             return new Failure<FigureDrawData>("Could not deserialize figure data: content was empty.");
         }
 
-        var cells = new List<FigureCellDrawData>(dto.Cells.Count);
-        foreach (var cellDto in dto.Cells)
+        var graphs = new List<GraphDrawData>(dto.Graphs.Count);
+        foreach (var graphDto in dto.Graphs)
         {
-            GraphDrawData? graph = null;
-            if (cellDto.HasGraph)
+            switch (GraphDrawData.FromDto(graphDto))
             {
-                switch (GraphDrawData.Create(
-                    cellDto.GraphChannelAName, cellDto.GraphChannelBName, cellDto.GraphChannelABinEdges.ToImmutableArray(),
-                    cellDto.GraphChannelBBinEdges.ToImmutableArray(), cellDto.GraphCellColorsRowMajor.ToImmutableArray(),
-                    cellDto.GraphDrawAxisTickLabels, cellDto.GraphDrawAxisTitles))
-                {
-                    case Success<GraphDrawData> success:
-                        graph = success.Value;
-                        break;
-                    case Failure<GraphDrawData> failure:
-                        return new Failure<FigureDrawData>(failure.Error);
-                    default:
-                        return new Failure<FigureDrawData>("Could not reconstruct a cell's graph.");
-                }
-            }
-
-            switch (FigureCellDrawData.Create(cellDto.Row, cellDto.Col, cellDto.AnalysisName, graph, cellDto.ErrorMessage))
-            {
-                case Success<FigureCellDrawData> success:
-                    cells.Add(success.Value);
+                case Success<GraphDrawData> success:
+                    graphs.Add(success.Value);
                     break;
-                case Failure<FigureCellDrawData> failure:
+                case Failure<GraphDrawData> failure:
                     return new Failure<FigureDrawData>(failure.Error);
                 default:
-                    return new Failure<FigureDrawData>("Could not reconstruct a figure cell.");
+                    return new Failure<FigureDrawData>("Could not reconstruct a figure's graph.");
             }
         }
 
-        return Create(dto.RowCount, dto.ColCount, cells);
+        return Create(dto.RowCount, dto.ColCount, dto.CellHasGraph, graphs);
     }
 }

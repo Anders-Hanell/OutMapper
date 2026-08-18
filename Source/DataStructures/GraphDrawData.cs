@@ -5,7 +5,12 @@ namespace DataStructures;
 
 public sealed class GraphDrawData
 {
-    private sealed class DataTransferObject
+    /// <summary>
+    /// JSON shape of a <see cref="GraphDrawData"/>. Internal (rather than private) so that
+    /// <see cref="FigureDrawData"/> can reuse it as the element type of its own graph list, instead of
+    /// duplicating the same fields in a DTO of its own.
+    /// </summary>
+    internal sealed class DataTransferObject
     {
         public string ChannelAName { get; set; } = "";
         public string ChannelBName { get; set; } = "";
@@ -97,9 +102,9 @@ public sealed class GraphDrawData
                 drawAxisTickLabels, drawAxisTitles, rowCount, colCount));
     }
 
-    public List<byte> ToByteArray()
+    internal DataTransferObject ToDto()
     {
-        var dto = new DataTransferObject
+        return new DataTransferObject
         {
             ChannelAName = ChannelAName,
             ChannelBName = ChannelBName,
@@ -109,8 +114,19 @@ public sealed class GraphDrawData
             DrawAxisTickLabels = DrawAxisTickLabels,
             DrawAxisTitles = DrawAxisTitles
         };
+    }
 
-        return JsonSerializer.SerializeToUtf8Bytes(dto).ToList();
+    internal static Result<GraphDrawData> FromDto(DataTransferObject dto)
+    {
+        return Create(
+            dto.ChannelAName, dto.ChannelBName, dto.ChannelABinEdges.ToImmutableArray(),
+            dto.ChannelBBinEdges.ToImmutableArray(), dto.CellColorsRowMajor.ToImmutableArray(),
+            dto.DrawAxisTickLabels, dto.DrawAxisTitles);
+    }
+
+    public List<byte> ToByteArray()
+    {
+        return JsonSerializer.SerializeToUtf8Bytes(ToDto()).ToList();
     }
 
     public static Result<GraphDrawData> FromByteArray(List<byte> bytes)
@@ -130,10 +146,7 @@ public sealed class GraphDrawData
             return new Failure<GraphDrawData>("Could not deserialize graph data: content was empty.");
         }
 
-        return Create(
-            dto.ChannelAName, dto.ChannelBName, dto.ChannelABinEdges.ToImmutableArray(),
-            dto.ChannelBBinEdges.ToImmutableArray(), dto.CellColorsRowMajor.ToImmutableArray(),
-            dto.DrawAxisTickLabels, dto.DrawAxisTitles);
+        return FromDto(dto);
     }
 
     private static bool IsStrictlyIncreasing(ImmutableArray<double> values)

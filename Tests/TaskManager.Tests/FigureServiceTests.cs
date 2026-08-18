@@ -27,7 +27,7 @@ public class FigureServiceTests
     }
 
     [Fact]
-    public void CreateGraph_leaves_an_unassigned_cell_without_a_graph_or_an_error()
+    public void CreateGraph_leaves_an_unassigned_cell_without_a_graph()
     {
         var fileSystem = new InMemoryFileSystem();
         fileSystem.CreateDirectory(ProjectFolder);
@@ -36,14 +36,12 @@ public class FigureServiceTests
             fileSystem, ProjectFolder, "MyFigure", rowCount: 1, colCount: 1, ImmutableArray.Create((string?)null));
 
         response.Success.Should().BeTrue();
-        var cell = response.Figure!.Cells.Single();
-        cell.HasGraph.Should().BeFalse();
-        cell.ErrorMessage.Should().BeNull();
-        cell.AnalysisName.Should().BeNull();
+        response.Figure!.CellHasGraph.Single().Should().BeFalse();
+        response.Figure.Graphs.Should().BeEmpty();
     }
 
     [Fact]
-    public void CreateGraph_reports_an_error_when_the_assigned_analysis_has_no_persisted_graph()
+    public void CreateGraph_fails_when_the_assigned_analysis_has_no_persisted_graph()
     {
         var fileSystem = new InMemoryFileSystem();
         fileSystem.CreateDirectory(ProjectFolder);
@@ -51,11 +49,9 @@ public class FigureServiceTests
         var response = FigureService.CreateGraph(
             fileSystem, ProjectFolder, "MyFigure", rowCount: 1, colCount: 1, ImmutableArray.Create((string?)"MyAnalysis"));
 
-        response.Success.Should().BeTrue();
-        var cell = response.Figure!.Cells.Single();
-        cell.HasGraph.Should().BeFalse();
-        cell.AnalysisName.Should().Be("MyAnalysis");
-        cell.ErrorMessage.Should().NotBeNull();
+        response.Success.Should().BeFalse();
+        response.Figure.Should().BeNull();
+        response.ErrorMessage.Should().NotBeNull();
     }
 
     [Fact]
@@ -69,10 +65,9 @@ public class FigureServiceTests
             fileSystem, ProjectFolder, "MyFigure", rowCount: 1, colCount: 1, ImmutableArray.Create((string?)"MyAnalysis"));
 
         response.Success.Should().BeTrue();
-        var cell = response.Figure!.Cells.Single();
-        cell.HasGraph.Should().BeTrue();
-        cell.ErrorMessage.Should().BeNull();
-        cell.Graph!.DrawAxisTickLabels.Should().BeTrue();
-        cell.Graph.DrawAxisTitles.Should().BeTrue();
+        response.Figure!.CellHasGraph.Single().Should().BeTrue();
+        var graph = response.Figure.Graphs.Single();
+        graph.DrawAxisTickLabels.Should().BeTrue();
+        graph.DrawAxisTitles.Should().BeTrue();
     }
 }
