@@ -70,4 +70,40 @@ public class FigureServiceTests
         graph.DrawAxisTickLabels.Should().BeTrue();
         graph.DrawAxisTitles.Should().BeTrue();
     }
+
+    [Fact]
+    public void CreateGraph_persists_the_label_style_and_carries_it_into_the_returned_figure()
+    {
+        var fileSystem = new InMemoryFileSystem();
+        fileSystem.CreateDirectory(ProjectFolder);
+
+        var response = FigureService.CreateGraph(
+            fileSystem, ProjectFolder, "MyFigure", rowCount: 1, colCount: 1, ImmutableArray.Create((string?)null),
+            FigureLabelStyle.Uppercase);
+
+        response.Success.Should().BeTrue();
+        response.Figure!.LabelStyle.Should().Be(FigureLabelStyle.Uppercase);
+
+        var layout = FigureService.ReadLayout(fileSystem, ProjectFolder, "MyFigure");
+        layout.LabelStyle.Should().Be(FigureLabelStyle.Uppercase);
+    }
+
+    [Fact]
+    public void SaveSize_preserves_the_previously_saved_label_style()
+    {
+        var fileSystem = new InMemoryFileSystem();
+        fileSystem.CreateDirectory(ProjectFolder);
+
+        FigureService.CreateGraph(
+            fileSystem, ProjectFolder, "MyFigure", rowCount: 1, colCount: 1, ImmutableArray.Create((string?)null),
+            FigureLabelStyle.Lowercase);
+
+        var response = FigureService.SaveSize(fileSystem, ProjectFolder, "MyFigure", rowCount: 2, colCount: 2);
+
+        response.Success.Should().BeTrue();
+        response.LabelStyle.Should().Be(FigureLabelStyle.Lowercase);
+
+        var layout = FigureService.ReadLayout(fileSystem, ProjectFolder, "MyFigure");
+        layout.LabelStyle.Should().Be(FigureLabelStyle.Lowercase);
+    }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using DataStructures;
 
 namespace Messages;
 
@@ -7,4 +8,5 @@ public sealed record CreateFigureGraphRequest(
     string FigureName,
     int RowCount,
     int ColCount,
-    ImmutableArray<string?> CellAnalysisNames) : Message;
+    ImmutableArray<string?> CellAnalysisNames,
+    FigureLabelStyle LabelStyle = FigureLabelStyle.None) : Message;

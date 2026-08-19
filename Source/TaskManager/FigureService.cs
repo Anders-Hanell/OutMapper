@@ -27,7 +27,7 @@ internal static class FigureService
 
         return new FigureLayoutResponse(
             projectFolder, figureName, LayoutExists: true, config.RowCount, config.ColCount,
-            config.CellAnalysisNames.ToImmutableArray());
+            config.CellAnalysisNames.ToImmutableArray(), config.LabelStyle);
     }
 
     internal static SaveFigureSizeResponse SaveSize(
@@ -70,11 +70,14 @@ internal static class FigureService
             }
         }
 
+        var labelStyle = existingConfig?.LabelStyle ?? FigureLabelStyle.None;
+
         var newConfig = new FigureConfigDto
         {
             RowCount = rowCount,
             ColCount = colCount,
-            CellAnalysisNames = remappedCells
+            CellAnalysisNames = remappedCells,
+            LabelStyle = labelStyle
         };
 
         if (!WriteConfig(fileSystem, projectFolder, figureName, newConfig))
@@ -86,12 +89,12 @@ internal static class FigureService
 
         return new SaveFigureSizeResponse(
             projectFolder, figureName, Success: true, ErrorMessage: null, rowCount, colCount,
-            remappedCells.ToImmutableArray());
+            remappedCells.ToImmutableArray(), labelStyle);
     }
 
     internal static CreateFigureGraphResponse CreateGraph(
         IFileSystem fileSystem, string? projectFolder, string figureName, int rowCount, int colCount,
-        ImmutableArray<string?> cellAnalysisNames)
+        ImmutableArray<string?> cellAnalysisNames, FigureLabelStyle labelStyle = FigureLabelStyle.None)
     {
         if (string.IsNullOrWhiteSpace(projectFolder) || string.IsNullOrWhiteSpace(figureName))
         {
@@ -109,7 +112,8 @@ internal static class FigureService
         {
             RowCount = rowCount,
             ColCount = colCount,
-            CellAnalysisNames = cellAnalysisNames.ToArray()
+            CellAnalysisNames = cellAnalysisNames.ToArray(),
+            LabelStyle = labelStyle
         };
         WriteConfig(fileSystem, projectFolder, figureName, config);
 
@@ -142,7 +146,7 @@ internal static class FigureService
             }
         }
 
-        switch (FigureDrawData.Create(rowCount, colCount, cellHasGraph, graphs))
+        switch (FigureDrawData.Create(rowCount, colCount, cellHasGraph, graphs, labelStyle))
         {
             case Success<FigureDrawData> success:
                 return new CreateFigureGraphResponse(projectFolder, figureName, Success: true, ErrorMessage: null, success.Value);
@@ -203,5 +207,6 @@ internal static class FigureService
         public int RowCount { get; set; }
         public int ColCount { get; set; }
         public string?[] CellAnalysisNames { get; set; } = [];
+        public FigureLabelStyle LabelStyle { get; set; }
     }
 }

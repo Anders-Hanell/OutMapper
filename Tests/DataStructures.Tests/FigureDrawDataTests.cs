@@ -70,4 +70,25 @@ public class FigureDrawDataTests
         roundTripped.Graphs[0].DrawAxisTickLabels.Should().BeTrue();
         roundTripped.Graphs[0].DrawAxisTitles.Should().BeFalse();
     }
+
+    [Fact]
+    public void Create_defaults_LabelStyle_to_None()
+    {
+        var figure = FigureDrawData.Create(1, 1, new[] { true }, new[] { Graph() })
+            .Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
+
+        figure.LabelStyle.Should().Be(FigureLabelStyle.None);
+    }
+
+    [Fact]
+    public void ToByteArray_and_FromByteArray_round_trips_the_label_style()
+    {
+        var original = FigureDrawData.Create(1, 1, new[] { true }, new[] { Graph() }, FigureLabelStyle.Lowercase)
+            .Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
+
+        var roundTripped = FigureDrawData.FromByteArray(original.ToByteArray())
+            .Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
+
+        roundTripped.LabelStyle.Should().Be(FigureLabelStyle.Lowercase);
+    }
 }

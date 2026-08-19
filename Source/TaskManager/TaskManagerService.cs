@@ -243,7 +243,7 @@ internal static class TaskManagerService
     {
         var response = FigureService.CreateGraph(
             LocalFileSystem.Instance, message.ProjectFolder, message.FigureName,
-            message.RowCount, message.ColCount, message.CellAnalysisNames);
+            message.RowCount, message.ColCount, message.CellAnalysisNames, message.LabelStyle);
 
         GatewayToOutMapper.SendMessage(response);
         return Task.CompletedTask;

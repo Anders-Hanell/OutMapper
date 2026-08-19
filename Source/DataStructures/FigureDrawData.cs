@@ -18,24 +18,30 @@ public sealed class FigureDrawData
         public int ColCount { get; set; }
         public bool[] CellHasGraph { get; set; } = [];
         public List<GraphDrawData.DataTransferObject> Graphs { get; set; } = new();
+        public FigureLabelStyle LabelStyle { get; set; }
     }
 
-    private FigureDrawData(int rowCount, int colCount, ImmutableArray<bool> cellHasGraph, ImmutableArray<GraphDrawData> graphs)
+    private FigureDrawData(
+        int rowCount, int colCount, ImmutableArray<bool> cellHasGraph, ImmutableArray<GraphDrawData> graphs,
+        FigureLabelStyle labelStyle)
     {
         // Private constructor to make sure object creation goes through Create().
         RowCount = rowCount;
         ColCount = colCount;
         CellHasGraph = cellHasGraph;
         Graphs = graphs;
+        LabelStyle = labelStyle;
     }
 
     public int RowCount { get; }
     public int ColCount { get; }
     public ImmutableArray<bool> CellHasGraph { get; }
     public ImmutableArray<GraphDrawData> Graphs { get; }
+    public FigureLabelStyle LabelStyle { get; }
 
     public static Result<FigureDrawData> Create(
-        int rowCount, int colCount, IReadOnlyList<bool> cellHasGraph, IReadOnlyList<GraphDrawData> graphs)
+        int rowCount, int colCount, IReadOnlyList<bool> cellHasGraph, IReadOnlyList<GraphDrawData> graphs,
+        FigureLabelStyle labelStyle = FigureLabelStyle.None)
     {
         if (rowCount <= 0)
         {
@@ -61,7 +67,8 @@ public sealed class FigureDrawData
         }
 
         return new Success<FigureDrawData>(
-            new FigureDrawData(rowCount, colCount, cellHasGraph.ToImmutableArray(), graphs.ToImmutableArray()));
+            new FigureDrawData(
+                rowCount, colCount, cellHasGraph.ToImmutableArray(), graphs.ToImmutableArray(), labelStyle));
     }
 
     public List<byte> ToByteArray()
@@ -71,7 +78,8 @@ public sealed class FigureDrawData
             RowCount = RowCount,
             ColCount = ColCount,
             CellHasGraph = CellHasGraph.ToArray(),
-            Graphs = Graphs.Select(graph => graph.ToDto()).ToList()
+            Graphs = Graphs.Select(graph => graph.ToDto()).ToList(),
+            LabelStyle = LabelStyle
         };
 
         return JsonSerializer.SerializeToUtf8Bytes(dto).ToList();
@@ -109,6 +117,6 @@ public sealed class FigureDrawData
             }
         }
 
-        return Create(dto.RowCount, dto.ColCount, dto.CellHasGraph, graphs);
+        return Create(dto.RowCount, dto.ColCount, dto.CellHasGraph, graphs, dto.LabelStyle);
     }
 }

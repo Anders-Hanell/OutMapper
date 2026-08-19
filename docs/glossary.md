@@ -26,7 +26,9 @@ A graph visualizing how common a range of values is.
 
 #### Figure
 
-A combination of multiple graphs, arranged in a fixed grid of rows and columns. Each cell may hold an existing [Analysis](#analysis)'s graph, or be left empty. The previous R implementation could not create figures; OutMapper supports creating them.
+A combination of multiple graphs, arranged in a fixed grid of rows and columns. Each cell may hold an existing [Analysis](#analysis)'s graph, or be left empty. The previous R implementation could not create figures; OutMapper supports creating them. A Figure's PDF is not itself titled with the Figure's name.
+
+Optionally, a Figure's assigned graphs can each be given a letter label (uppercase or lowercase), assigned in row-major order over the cells that have a graph (empty cells are skipped, so labels stay contiguous).
 
 ### Organization
 

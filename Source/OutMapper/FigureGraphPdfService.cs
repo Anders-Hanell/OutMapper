@@ -1,5 +1,7 @@
 using SkiaSharp;
 using System.IO;
+using System.Text;
+using DataStructures;
 using Messages;
 using TaskManager;
 using Path = System.IO.Path;
@@ -49,9 +51,11 @@ internal static class FigureGraphPdfService
         const float gridLeft = margin + 40f;
         const float gridBottom = pageHeight - margin - 24f;
         const float gridTop = gridBottom - graphSize;
+        const float cellGap = 16f;
+        const float labelHeight = 16f;
 
-        var cellOuterWidth = graphSize / figure.ColCount;
-        var cellOuterHeight = graphSize / figure.RowCount;
+        var cellOuterWidth = (graphSize - (figure.ColCount - 1) * cellGap) / figure.ColCount;
+        var cellOuterHeight = (graphSize - (figure.RowCount - 1) * cellGap) / figure.RowCount;
 
         using var canvas = document.BeginPage(pageWidth, pageHeight);
         canvas.Clear(SKColors.White);
@@ -64,18 +68,60 @@ internal static class FigureGraphPdfService
             Style = SKPaintStyle.Stroke
         };
 
+        using var labelPaint = new SKPaint
+        {
+            Color = SKColors.Black,
+            IsAntialias = true
+        };
+
+        using var labelFont = new SKFont { Size = 14, Embolden = true };
+
+        var hasLabels = figure.LabelStyle != FigureLabelStyle.None;
         var graphIndex = 0;
         for (var index = 0; index < figure.CellHasGraph.Length; index++)
         {
             var row = index / figure.ColCount;
             var col = index % figure.ColCount;
-            var outerLeft = gridLeft + col * cellOuterWidth;
-            var outerTop = gridTop + row * cellOuterHeight;
+            var outerLeft = gridLeft + col * (cellOuterWidth + cellGap);
+            var outerTop = gridTop + row * (cellOuterHeight + cellGap);
             var outerRect = new SKRect(outerLeft, outerTop, outerLeft + cellOuterWidth, outerTop + cellOuterHeight);
 
             if (figure.CellHasGraph[index])
             {
-                HeatmapDrawing.Draw(canvas, outerRect, figure.Graphs[graphIndex]);
+                var cellGraph = figure.Graphs[graphIndex];
+
+                // HeatmapDrawing draws tick labels and axis titles outside the rect it's given, so each
+                // cell must shrink its own rect to keep that chrome from bleeding into the next cell.
+                var reservedBottom = 0f;
+                var reservedLeft = 0f;
+                if (cellGraph.DrawAxisTickLabels)
+                {
+                    reservedBottom += 20f;
+                    reservedLeft += 26f;
+                }
+
+                if (cellGraph.DrawAxisTitles)
+                {
+                    reservedBottom += 26f;
+                    reservedLeft += 26f;
+                }
+
+                var heatmapRect = new SKRect(
+                    outerRect.Left + reservedLeft,
+                    hasLabels ? outerRect.Top + labelHeight : outerRect.Top,
+                    outerRect.Right,
+                    outerRect.Bottom - reservedBottom);
+
+                HeatmapDrawing.Draw(canvas, heatmapRect, cellGraph);
+
+                if (hasLabels)
+                {
+                    // Top-right, not top-left: the rotated y-axis title (when present) occupies the
+                    // cell's left edge and can run taller than the cell, so top-left risks a collision.
+                    var label = GetLetterLabel(graphIndex, uppercase: figure.LabelStyle == FigureLabelStyle.Uppercase);
+                    canvas.DrawText(label, outerRect.Right, outerRect.Top + labelHeight - 2f, SKTextAlign.Right, labelFont, labelPaint);
+                }
+
                 graphIndex++;
             }
             else
@@ -84,19 +130,28 @@ internal static class FigureGraphPdfService
             }
         }
 
-        // Figure title
-        using var titlePaint = new SKPaint
-        {
-            Color = SKColors.Black,
-            IsAntialias = true
-        };
-
-        using var titleFont = new SKFont { Size = 24 };
-        canvas.DrawText(figureName, pageWidth / 2f, margin, SKTextAlign.Center, titleFont, titlePaint);
-
         document.EndPage();
         document.Close();
 
         return outputFile;
+    }
+
+    /// <summary>
+    /// Spreadsheet-style column label for a zero-based index: 0 -> "A", 25 -> "Z", 26 -> "AA", and so on,
+    /// so a figure with more than 26 labeled graphs still gets distinct, alphabetically ordered labels.
+    /// </summary>
+    private static string GetLetterLabel(int index, bool uppercase)
+    {
+        var n = index + 1;
+        var builder = new StringBuilder();
+        while (n > 0)
+        {
+            n--;
+            builder.Insert(0, (char)('A' + n % 26));
+            n /= 26;
+        }
+
+        var label = builder.ToString();
+        return uppercase ? label : label.ToLowerInvariant();
     }
 }

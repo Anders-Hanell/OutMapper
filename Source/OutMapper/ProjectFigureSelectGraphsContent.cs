@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using DataStructures;
 using Messages;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
@@ -10,21 +11,33 @@ namespace OutMapper;
 public sealed class ProjectFigureSelectGraphsContent : Border
 {
     private const string NoneOptionText = "(none)";
+    private const string NoLabelsOptionText = "No labels";
+    private const string UppercaseLabelsOptionText = "Uppercase (A, B, C...)";
+    private const string LowercaseLabelsOptionText = "Lowercase (a, b, c...)";
 
     internal static ProjectFigureSelectGraphsContent? Current { get; private set; }
 
+    private readonly IFolderOpener _folderOpener;
     private readonly Grid _cellsGrid;
     private readonly TextBlock _noSizeLabel;
+    private readonly ComboBox _labelStyleComboBox;
     private readonly TextBlock _statusLabel;
     private string? _currentProjectFolder;
     private string? _currentFigureName;
     private int _rowCount;
     private int _colCount;
     private string?[] _cellAnalysisNames = [];
+    private FigureLabelStyle _labelStyle = FigureLabelStyle.None;
     private ImmutableArray<string> _availableAnalysisNames = ImmutableArray<string>.Empty;
 
-    public ProjectFigureSelectGraphsContent()
+    public ProjectFigureSelectGraphsContent() : this(new DesktopFolderOpener())
     {
+    }
+
+    internal ProjectFigureSelectGraphsContent(IFolderOpener folderOpener)
+    {
+        _folderOpener = folderOpener;
+
         Padding = new Thickness(24);
         Background = GetThemeBrush("SystemControlBackgroundChromeMediumLowBrush");
         CornerRadius = new CornerRadius(12);
@@ -37,6 +50,24 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             Visibility = Visibility.Collapsed
         };
 
+        _labelStyleComboBox = new ComboBox
+        {
+            Header = "Graph labels",
+            MinWidth = 220,
+            Items = { NoLabelsOptionText, UppercaseLabelsOptionText, LowercaseLabelsOptionText },
+            SelectedIndex = 0
+        };
+
+        _labelStyleComboBox.SelectionChanged += (_, _) =>
+        {
+            _labelStyle = _labelStyleComboBox.SelectedItem switch
+            {
+                UppercaseLabelsOptionText => FigureLabelStyle.Uppercase,
+                LowercaseLabelsOptionText => FigureLabelStyle.Lowercase,
+                _ => FigureLabelStyle.None
+            };
+        };
+
         var createButton = new Button
         {
             Content = "Create",
@@ -46,6 +77,16 @@ public sealed class ProjectFigureSelectGraphsContent : Border
         };
 
         createButton.Click += (_, _) => CreateFigureGraph();
+
+        var openOutputFolderButton = new Button
+        {
+            Content = "Open output folder",
+            HorizontalAlignment = HorizontalAlignment.Left,
+            MinHeight = 44,
+            MinWidth = 120
+        };
+
+        openOutputFolderButton.Click += (_, _) => OpenOutputFolder();
 
         _statusLabel = new TextBlock
         {
@@ -74,7 +115,13 @@ public sealed class ProjectFigureSelectGraphsContent : Border
                     HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                     Content = _cellsGrid
                 },
-                createButton,
+                _labelStyleComboBox,
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 12,
+                    Children = { createButton, openOutputFolderButton }
+                },
                 _statusLabel
             }
         };
@@ -97,6 +144,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
         _rowCount = response.RowCount;
         _colCount = response.ColCount;
         _cellAnalysisNames = response.CellAnalysisNames.ToArray();
+        SetLabelStyle(response.LabelStyle);
         RebuildGrid();
     }
 
@@ -110,7 +158,19 @@ public sealed class ProjectFigureSelectGraphsContent : Border
         _rowCount = response.RowCount;
         _colCount = response.ColCount;
         _cellAnalysisNames = response.CellAnalysisNames.ToArray();
+        SetLabelStyle(response.LabelStyle);
         RebuildGrid();
+    }
+
+    private void SetLabelStyle(FigureLabelStyle labelStyle)
+    {
+        _labelStyle = labelStyle;
+        _labelStyleComboBox.SelectedItem = labelStyle switch
+        {
+            FigureLabelStyle.Uppercase => UppercaseLabelsOptionText,
+            FigureLabelStyle.Lowercase => LowercaseLabelsOptionText,
+            _ => NoLabelsOptionText
+        };
     }
 
     internal void OnAnalysesWithGraphListResponseReceived(AnalysesWithGraphListResponse response)
@@ -208,7 +268,24 @@ public sealed class ProjectFigureSelectGraphsContent : Border
 
         _statusLabel.Text = "Creating figure...";
         MessageRouter.SendMessage(new CreateFigureGraphRequest(
-            _currentProjectFolder, _currentFigureName, _rowCount, _colCount, _cellAnalysisNames.ToImmutableArray()));
+            _currentProjectFolder, _currentFigureName, _rowCount, _colCount, _cellAnalysisNames.ToImmutableArray(),
+            _labelStyle));
+    }
+
+    private async void OpenOutputFolder()
+    {
+        if (_currentProjectFolder is null)
+        {
+            _statusLabel.Text = "No figure selected.";
+            return;
+        }
+
+        var outputFolder = System.IO.Path.Combine(_currentProjectFolder, ProjectFolderService.ProjectOutputFolderName);
+        var opened = await _folderOpener.OpenFolderAsync(outputFolder);
+        if (!opened)
+        {
+            _statusLabel.Text = "Could not open the output folder.";
+        }
     }
 
     internal void OnCreateFigureGraphResponseReceived(CreateFigureGraphResponse response)
