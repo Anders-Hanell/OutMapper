@@ -1,3 +1,6 @@
+# Folder for temporary storage of output from unit tests.
+OutMapperAutomatedTestsOutput
+
 # R code from the initial implementation of this project (without GUI).
 R_code
 

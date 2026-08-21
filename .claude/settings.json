@@ -22,6 +22,7 @@
       "Bash(sqlite3 -readonly 'file:/Users/andershanell/Library/Application Support/Code/User/workspaceStorage/c0bb76f4ca86c0900496dfde60061ba7/state.vscdb?immutable=1' 'SELECT length\\(value\\) FROM ItemTable WHERE key='\\\\''storedTestResults'\\\\'';')",
       "Bash(sqlite3 -readonly 'file:/Users/andershanell/Library/Application Support/Code/User/workspaceStorage/c0bb76f4ca86c0900496dfde60061ba7/state.vscdb?immutable=1' 'SELECT length\\(value\\) FROM ItemTable WHERE key='\\\\''ms-dotnettools.csdevkit'\\\\'';')",
       "Read(//tmp/**)",
+      "Read(//Users/andershanell/Documents/OutMapperAutomatedTestsOutput/**)",
       "Bash(rm -rf /tmp/OutMapperSamplePdf; dotnet test Tests/OutMapper.Tests/OutMapper.Tests.csproj --no-restore --verbosity:minimal --maxcpucount:1 --nodeReuse:false -p:UseSharedCompilation=false --filter SampleFigurePdfGenerator 2>&1 | tail -40; echo \"---\"; ls -la /tmp/OutMapperSamplePdf)",
       "Bash(rm -rf /var/folders/_j/607cx_q54lv1zc25vdbw_0_40000gn/T/OutMapperSamplePdf)",
       "Read(//var/folders/_j/607cx_q54lv1zc25vdbw_0_40000gn/T/OutMapperSamplePdf/OutMapper_ProjectOutput/**)",

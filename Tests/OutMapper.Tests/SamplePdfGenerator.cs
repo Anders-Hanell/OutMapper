@@ -2,21 +2,20 @@ using System.Collections.Immutable;
 using DataStructures;
 using Messages;
 using TaskManager;
-using Path = System.IO.Path;
+using TestSupport;
 
 namespace OutMapper.Tests;
 
 /// <summary>
-/// Not part of the regression suite - an on-demand generator for a representative sample PDF, so its
-/// appearance can be inspected directly (e.g. by Claude's Read tool) while the layout is still evolving.
-/// Run with: dotnet test --filter SamplePdfGenerator
+/// Generates a representative sample analysis PDF, so its appearance can be inspected directly (e.g. by
+/// Claude's Read tool) while the layout is still evolving.
 /// </summary>
 public class SamplePdfGenerator
 {
-    [Fact(Skip = "On-demand visual-inspection helper, not a regression test.")]
+    [Fact]
     public void GenerateSampleAnalysisPdf()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "OutMapperSamplePdf");
+        var outputDirectory = SampleOutputDirectory.For(nameof(SamplePdfGenerator));
         var sampleGraph = GraphDrawData.Create(
             channelAName: "Heart rate",
             channelBName: "Blood pressure",
