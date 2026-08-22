@@ -92,25 +92,13 @@ internal static class FigureGraphPdfService
 
                 // HeatmapDrawing draws tick labels and axis titles outside the rect it's given, so each
                 // cell must shrink its own rect to keep that chrome from bleeding into the next cell.
-                var reservedBottom = 0f;
-                var reservedLeft = 0f;
-                if (cellGraph.DrawAxisTickLabels)
-                {
-                    reservedBottom += 20f;
-                    reservedLeft += 26f;
-                }
-
-                if (cellGraph.DrawAxisTitles)
-                {
-                    reservedBottom += 26f;
-                    reservedLeft += 26f;
-                }
+                var (reservedLeft, reservedBottom) = HeatmapLayoutService.ComputeReservedMargins(cellGraph);
 
                 var heatmapRect = new SKRect(
-                    outerRect.Left + reservedLeft,
+                    outerRect.Left + (float)reservedLeft,
                     hasLabels ? outerRect.Top + labelHeight : outerRect.Top,
                     outerRect.Right,
-                    outerRect.Bottom - reservedBottom);
+                    outerRect.Bottom - (float)reservedBottom);
 
                 HeatmapDrawing.Draw(canvas, heatmapRect, cellGraph);
 

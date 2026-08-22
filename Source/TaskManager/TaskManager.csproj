@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="TaskManager.Tests" />
+    <InternalsVisibleTo Include="OutMapper" />
   </ItemGroup>
 
 </Project>
