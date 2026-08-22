@@ -15,6 +15,15 @@ public static class HeatmapLayout
     private static readonly OMColor AxisColor = new(0, 0, 0);
     private const double AxisLineWidth = 2;
 
+    /// <summary>Height of an X-axis tick label's on-page footprint.</summary>
+    private const double XTickLabelMaxHeight = 20.0;
+
+    /// <summary>Width of a Y-axis tick label's on-page footprint.</summary>
+    private const double YTickLabelMaxWidth = 26.0;
+
+    /// <summary>Thickness (shared by both axes) of an axis title's on-page footprint.</summary>
+    private const double AxisTitleMaxThickness = 26.0;
+
     public static Result<HeatmapLayoutData> Compute(
         GraphDrawData data, double areaLeft, double areaTop, double areaWidth, double areaHeight)
     {
@@ -37,66 +46,51 @@ public static class HeatmapLayout
                 var top = axisBottom - (row + 1) * cellHeight;
                 var color = ParseCellColor(data.CellColorsRowMajor[index]);
 
-                cellRects[index] = new OMRect(
-                    new OMPoint(left, top), new OMPoint(left + cellWidth, top),
-                    new OMPoint(left, top + cellHeight), new OMPoint(left + cellWidth, top + cellHeight),
-                    cellWidth, cellHeight, color);
+                cellRects[index] = MakeRect(left, top, cellWidth, cellHeight, color);
             }
         }
 
-        var xTickX = ImmutableArray<double>.Empty;
-        var xTickText = ImmutableArray<string>.Empty;
-        var yTickY = ImmutableArray<double>.Empty;
-        var yTickText = ImmutableArray<string>.Empty;
+        var tickLabels = ImmutableArray<OMTextBox>.Empty;
         if (data.DrawAxisTickLabels)
         {
-            var xTicks = new double[colCount + 1];
-            var xTexts = new string[colCount + 1];
+            var builder = ImmutableArray.CreateBuilder<OMTextBox>(colCount + 1 + rowCount + 1);
+
             for (var col = 0; col <= colCount; col++)
             {
-                xTicks[col] = areaLeft + col * cellWidth;
-                xTexts[col] = FormatTick(data.ChannelABinEdges[col]);
+                var xCenter = areaLeft + col * cellWidth;
+                var rect = MakeRect(xCenter - cellWidth / 2.0, axisBottom, cellWidth, XTickLabelMaxHeight, AxisColor);
+                builder.Add(new OMTextBox(FormatTick(data.ChannelABinEdges[col]), rect, OMTextRotation.Horizontal));
             }
 
-            xTickX = xTicks.ToImmutableArray();
-            xTickText = xTexts.ToImmutableArray();
-
-            var yTicks = new double[rowCount + 1];
-            var yTexts = new string[rowCount + 1];
             for (var row = 0; row <= rowCount; row++)
             {
-                yTicks[row] = axisBottom - row * cellHeight + 4.0;
-                yTexts[row] = FormatTick(data.ChannelBBinEdges[row]);
+                var yCenter = axisBottom - row * cellHeight;
+                var rect = MakeRect(areaLeft - YTickLabelMaxWidth, yCenter - cellHeight / 2.0, YTickLabelMaxWidth, cellHeight, AxisColor);
+                builder.Add(new OMTextBox(FormatTick(data.ChannelBBinEdges[row]), rect, OMTextRotation.Horizontal));
             }
 
-            yTickY = yTicks.ToImmutableArray();
-            yTickText = yTexts.ToImmutableArray();
+            tickLabels = builder.MoveToImmutable();
         }
 
-        string? xAxisTitleText = null;
-        string? yAxisTitleText = null;
-        double xAxisTitleX = 0, xAxisTitleY = 0, yAxisTitleX = 0, yAxisTitleY = 0;
+        var axisTitles = ImmutableArray<OMTextBox>.Empty;
         if (data.DrawAxisTitles)
         {
-            xAxisTitleText = data.ChannelAName;
-            xAxisTitleX = (areaLeft + axisRight) / 2.0;
-            xAxisTitleY = axisBottom + 36.0;
+            var tickLabelBottomOffset = data.DrawAxisTickLabels ? XTickLabelMaxHeight : 0.0;
+            var tickLabelLeftOffset = data.DrawAxisTickLabels ? YTickLabelMaxWidth : 0.0;
 
-            yAxisTitleText = data.ChannelBName;
-            yAxisTitleX = areaLeft - 40.0;
-            yAxisTitleY = (areaTop + axisBottom) / 2.0;
+            var xTitleRect = MakeRect(areaLeft, axisBottom + tickLabelBottomOffset, areaWidth, AxisTitleMaxThickness, AxisColor);
+            var yTitleRect = MakeRect(
+                areaLeft - tickLabelLeftOffset - AxisTitleMaxThickness, areaTop, AxisTitleMaxThickness, areaHeight, AxisColor);
+
+            axisTitles = ImmutableArray.Create(
+                new OMTextBox(data.ChannelAName, xTitleRect, OMTextRotation.Horizontal),
+                new OMTextBox(data.ChannelBName, yTitleRect, OMTextRotation.CounterClockwise90));
         }
 
         var xAxis = new OMLine(new OMPoint(areaLeft, axisBottom), new OMPoint(axisRight, axisBottom), AxisColor, AxisLineWidth);
         var yAxis = new OMLine(new OMPoint(areaLeft, axisBottom), new OMPoint(areaLeft, areaTop), AxisColor, AxisLineWidth);
 
-        return HeatmapLayoutData.Create(
-            xAxis, yAxis,
-            cellRects.ToImmutableArray(),
-            xTickX, xTickText, axisBottom + 14.0,
-            yTickY, yTickText, areaLeft - 6.0,
-            xAxisTitleText, xAxisTitleX, xAxisTitleY,
-            yAxisTitleText, yAxisTitleX, yAxisTitleY);
+        return HeatmapLayoutData.Create(xAxis, yAxis, cellRects.ToImmutableArray(), tickLabels, axisTitles);
     }
 
     /// <summary>
@@ -111,14 +105,14 @@ public static class HeatmapLayout
         double reservedLeft = 0, reservedBottom = 0;
         if (data.DrawAxisTickLabels)
         {
-            reservedBottom += 20.0;
-            reservedLeft += 26.0;
+            reservedBottom += XTickLabelMaxHeight;
+            reservedLeft += YTickLabelMaxWidth;
         }
 
         if (data.DrawAxisTitles)
         {
-            reservedBottom += 26.0;
-            reservedLeft += 26.0;
+            reservedBottom += AxisTitleMaxThickness;
+            reservedLeft += AxisTitleMaxThickness;
         }
 
         return (reservedLeft, reservedBottom);
@@ -128,6 +122,12 @@ public static class HeatmapLayout
     {
         return value.ToString("0.##", CultureInfo.InvariantCulture);
     }
+
+    private static OMRect MakeRect(double left, double top, double width, double height, OMColor color) =>
+        new(
+            new OMPoint(left, top), new OMPoint(left + width, top),
+            new OMPoint(left, top + height), new OMPoint(left + width, top + height),
+            width, height, color);
 
     /// <summary>
     /// Parses a "#RRGGBB" hex color, matching the format <c>Algorithms.JetColorScale.ToHexColor</c>

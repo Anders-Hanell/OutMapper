@@ -25,14 +25,8 @@ internal static class HeatmapDrawing
 
         var layout = success.Value;
 
-        using var labelPaint = new SKPaint
-        {
-            Color = SKColors.Black,
-            IsAntialias = true
-        };
-
-        using var tickFont = new SKFont { Size = 10 };
-        using var titleFont = new SKFont { Size = 18 };
+        using var tickFont = new SKFont { Size = TextFitting.FitUniformSize(layout.TickLabels) };
+        using var titleFont = new SKFont { Size = TextFitting.FitUniformSize(layout.AxisTitles) };
 
         // Axes
         DrawLine(canvas, layout.XAxis);
@@ -44,28 +38,14 @@ internal static class HeatmapDrawing
             DrawRect(canvas, cellRect);
         }
 
-        for (var i = 0; i < layout.XTickX.Length; i++)
+        foreach (var textBox in layout.TickLabels)
         {
-            canvas.DrawText(layout.XTickText[i], (float)layout.XTickX[i], (float)layout.XTickY, SKTextAlign.Center, tickFont, labelPaint);
+            DrawTextBox(canvas, textBox, tickFont);
         }
 
-        for (var i = 0; i < layout.YTickY.Length; i++)
+        foreach (var textBox in layout.AxisTitles)
         {
-            canvas.DrawText(layout.YTickText[i], (float)layout.YTickX, (float)layout.YTickY[i], SKTextAlign.Right, tickFont, labelPaint);
-        }
-
-        if (layout.XAxisTitleText is not null)
-        {
-            canvas.DrawText(layout.XAxisTitleText, (float)layout.XAxisTitleX, (float)layout.XAxisTitleY, SKTextAlign.Center, titleFont, labelPaint);
-        }
-
-        if (layout.YAxisTitleText is not null)
-        {
-            canvas.Save();
-            canvas.Translate((float)layout.YAxisTitleX, (float)layout.YAxisTitleY);
-            canvas.RotateDegrees(-90);
-            canvas.DrawText(layout.YAxisTitleText, 0, 0, SKTextAlign.Center, titleFont, labelPaint);
-            canvas.Restore();
+            DrawTextBox(canvas, textBox, titleFont);
         }
     }
 
@@ -95,5 +75,34 @@ internal static class HeatmapDrawing
             (float)rect.TopLeft.X, (float)rect.TopLeft.Y,
             (float)rect.BottomRight.X, (float)rect.BottomRight.Y);
         canvas.DrawRect(skRect, paint);
+    }
+
+    /// <summary>
+    /// Draws Text centered (both horizontally and vertically) within Rect, rotating around the rect's
+    /// center for a <see cref="OMTextRotation.CounterClockwise90"/> box — Rect already describes that
+    /// box's rotated on-page footprint, so its center is the correct pivot either way.
+    /// </summary>
+    private static void DrawTextBox(SKCanvas canvas, OMTextBox box, SKFont font)
+    {
+        using var paint = new SKPaint
+        {
+            Color = new SKColor(box.Rect.FillColor.R, box.Rect.FillColor.G, box.Rect.FillColor.B),
+            IsAntialias = true
+        };
+
+        var centerX = (float)(box.Rect.TopLeft.X + box.Rect.Width / 2.0);
+        var centerY = (float)(box.Rect.TopLeft.Y + box.Rect.Height / 2.0);
+
+        font.MeasureText(box.Text, out var bounds);
+
+        canvas.Save();
+        canvas.Translate(centerX, centerY);
+        if (box.Rotation == OMTextRotation.CounterClockwise90)
+        {
+            canvas.RotateDegrees(-90);
+        }
+
+        canvas.DrawText(box.Text, 0, -bounds.MidY, SKTextAlign.Center, font, paint);
+        canvas.Restore();
     }
 }

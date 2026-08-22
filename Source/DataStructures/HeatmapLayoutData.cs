@@ -13,27 +13,15 @@ public sealed class HeatmapLayoutData
     private HeatmapLayoutData(
         OMLine xAxis, OMLine yAxis,
         ImmutableArray<OMRect> cellRects,
-        ImmutableArray<double> xTickX, ImmutableArray<string> xTickText, double xTickY,
-        ImmutableArray<double> yTickY, ImmutableArray<string> yTickText, double yTickX,
-        string? xAxisTitleText, double xAxisTitleX, double xAxisTitleY,
-        string? yAxisTitleText, double yAxisTitleX, double yAxisTitleY)
+        ImmutableArray<OMTextBox> tickLabels,
+        ImmutableArray<OMTextBox> axisTitles)
     {
         // Private constructor to make sure object creation goes through Create().
         XAxis = xAxis;
         YAxis = yAxis;
         CellRects = cellRects;
-        XTickX = xTickX;
-        XTickText = xTickText;
-        XTickY = xTickY;
-        YTickY = yTickY;
-        YTickText = yTickText;
-        YTickX = yTickX;
-        XAxisTitleText = xAxisTitleText;
-        XAxisTitleX = xAxisTitleX;
-        XAxisTitleY = xAxisTitleY;
-        YAxisTitleText = yAxisTitleText;
-        YAxisTitleX = yAxisTitleX;
-        YAxisTitleY = yAxisTitleY;
+        TickLabels = tickLabels;
+        AxisTitles = axisTitles;
     }
 
     public OMLine XAxis { get; }
@@ -42,54 +30,30 @@ public sealed class HeatmapLayoutData
     /// <summary>Row-major, same indexing as <see cref="GraphDrawData.CellColorsRowMajor"/>.</summary>
     public ImmutableArray<OMRect> CellRects { get; }
 
-    /// <summary>Empty when the source graph's DrawAxisTickLabels is false.</summary>
-    public ImmutableArray<double> XTickX { get; }
-    public ImmutableArray<string> XTickText { get; }
-    public double XTickY { get; }
+    /// <summary>Every X-axis and Y-axis tick label. Empty when the source graph's DrawAxisTickLabels is false.</summary>
+    public ImmutableArray<OMTextBox> TickLabels { get; }
 
-    public ImmutableArray<double> YTickY { get; }
-    public ImmutableArray<string> YTickText { get; }
-    public double YTickX { get; }
-
-    /// <summary>Null when the source graph's DrawAxisTitles is false.</summary>
-    public string? XAxisTitleText { get; }
-    public double XAxisTitleX { get; }
-    public double XAxisTitleY { get; }
-
-    public string? YAxisTitleText { get; }
-    public double YAxisTitleX { get; }
-    public double YAxisTitleY { get; }
+    /// <summary>0, 1, or 2 entries (X title, Y title) depending on the source graph's DrawAxisTitles flag.</summary>
+    public ImmutableArray<OMTextBox> AxisTitles { get; }
 
     public static Result<HeatmapLayoutData> Create(
         OMLine xAxis, OMLine yAxis,
         ImmutableArray<OMRect> cellRects,
-        ImmutableArray<double> xTickX, ImmutableArray<string> xTickText, double xTickY,
-        ImmutableArray<double> yTickY, ImmutableArray<string> yTickText, double yTickX,
-        string? xAxisTitleText, double xAxisTitleX, double xAxisTitleY,
-        string? yAxisTitleText, double yAxisTitleX, double yAxisTitleY)
+        ImmutableArray<OMTextBox> tickLabels,
+        ImmutableArray<OMTextBox> axisTitles)
     {
         if (cellRects.Any(rect => rect.Width <= 0 || rect.Height <= 0))
         {
             return new Failure<HeatmapLayoutData>("The heatmap's drawing area is too small to lay out.");
         }
 
-        if (xTickX.Length != xTickText.Length)
+        if (tickLabels.Any(box => box.Rect.Width <= 0 || box.Rect.Height <= 0)
+            || axisTitles.Any(box => box.Rect.Width <= 0 || box.Rect.Height <= 0))
         {
-            return new Failure<HeatmapLayoutData>("X-axis tick positions and labels must have the same length.");
-        }
-
-        if (yTickY.Length != yTickText.Length)
-        {
-            return new Failure<HeatmapLayoutData>("Y-axis tick positions and labels must have the same length.");
+            return new Failure<HeatmapLayoutData>("The heatmap's drawing area is too small to lay out.");
         }
 
         return new Success<HeatmapLayoutData>(
-            new HeatmapLayoutData(
-                xAxis, yAxis,
-                cellRects,
-                xTickX, xTickText, xTickY,
-                yTickY, yTickText, yTickX,
-                xAxisTitleText, xAxisTitleX, xAxisTitleY,
-                yAxisTitleText, yAxisTitleX, yAxisTitleY));
+            new HeatmapLayoutData(xAxis, yAxis, cellRects, tickLabels, axisTitles));
     }
 }

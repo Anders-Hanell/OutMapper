@@ -95,6 +95,10 @@ public class HeatmapLayoutTests
         layout.CellRects.Select(rect => rect.FillColor).Should().Equal(new OMColor(255, 255, 255));
     }
 
+    private static double CenterX(OMRect rect) => rect.TopLeft.X + rect.Width / 2.0;
+
+    private static double CenterY(OMRect rect) => rect.TopLeft.Y + rect.Height / 2.0;
+
     [Fact]
     public void Compute_returns_no_ticks_or_titles_when_both_flags_are_false()
     {
@@ -103,16 +107,12 @@ public class HeatmapLayoutTests
         var layout = HeatmapLayout.Compute(data, areaLeft: 0, areaTop: 0, areaWidth: 100, areaHeight: 100)
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
-        layout.XTickX.Should().BeEmpty();
-        layout.XTickText.Should().BeEmpty();
-        layout.YTickY.Should().BeEmpty();
-        layout.YTickText.Should().BeEmpty();
-        layout.XAxisTitleText.Should().BeNull();
-        layout.YAxisTitleText.Should().BeNull();
+        layout.TickLabels.Should().BeEmpty();
+        layout.AxisTitles.Should().BeEmpty();
     }
 
     [Fact]
-    public void Compute_places_one_tick_per_bin_edge_with_formatted_text()
+    public void Compute_places_one_x_tick_per_bin_edge_with_formatted_text_centered_on_the_column_boundary()
     {
         var data = CreateGraphData(
             channelABinEdges: ImmutableArray.Create(0.0, 1.5, 3.0),
@@ -122,8 +122,11 @@ public class HeatmapLayoutTests
         var layout = HeatmapLayout.Compute(data, areaLeft: 0, areaTop: 0, areaWidth: 90, areaHeight: 50)
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
-        layout.XTickX.Should().Equal(0, 45, 90);
-        layout.XTickText.Should().Equal("0", "1.5", "3");
+        // X ticks are built (and appear) before Y ticks; 3 column-boundary ticks then 2 row-boundary ticks.
+        var xTicks = layout.TickLabels.Take(3).ToImmutableArray();
+        xTicks.Select(box => box.Text).Should().Equal("0", "1.5", "3");
+        xTicks.Select(box => CenterX(box.Rect)).Should().Equal(0, 45, 90);
+        xTicks.Should().OnlyContain(box => box.Rotation == OMTextRotation.Horizontal);
     }
 
     [Fact]
@@ -134,8 +137,34 @@ public class HeatmapLayoutTests
         var layout = HeatmapLayout.Compute(data, areaLeft: 0, areaTop: 0, areaWidth: 100, areaHeight: 100)
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
-        layout.XAxisTitleText.Should().Be("ICP");
-        layout.YAxisTitleText.Should().Be("PRx");
+        layout.AxisTitles.Should().HaveCount(2);
+        layout.AxisTitles[0].Text.Should().Be("ICP");
+        layout.AxisTitles[0].Rotation.Should().Be(OMTextRotation.Horizontal);
+        layout.AxisTitles[1].Text.Should().Be("PRx");
+        layout.AxisTitles[1].Rotation.Should().Be(OMTextRotation.CounterClockwise90);
+    }
+
+    [Fact]
+    public void Compute_sizes_text_box_footprints_matching_the_reserved_margin_constants()
+    {
+        var data = CreateGraphData(
+            channelABinEdges: ImmutableArray.Create(0.0, 50.0),
+            channelBBinEdges: ImmutableArray.Create(0.0, 50.0),
+            drawAxisTickLabels: true, drawAxisTitles: true);
+
+        var layout = HeatmapLayout.Compute(data, areaLeft: 0, areaTop: 0, areaWidth: 100, areaHeight: 100)
+            .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
+
+        // X ticks (indices 0-1) come before Y ticks (indices 2-3).
+        layout.TickLabels.Should().HaveCount(4);
+        layout.TickLabels[0].Rect.Height.Should().Be(20);
+        layout.TickLabels[1].Rect.Height.Should().Be(20);
+        layout.TickLabels[2].Rect.Width.Should().Be(26);
+        layout.TickLabels[3].Rect.Width.Should().Be(26);
+
+        layout.AxisTitles.Should().HaveCount(2);
+        layout.AxisTitles[0].Rect.Height.Should().Be(26);
+        layout.AxisTitles[1].Rect.Width.Should().Be(26);
     }
 
     [Fact]
