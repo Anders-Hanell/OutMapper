@@ -8,7 +8,9 @@ namespace OutMapper;
 /// budget, using a single <see cref="SKFont.MeasureText(string, out SKRect, SKPaint?)"/> probe and
 /// linear scaling — SkiaSharp glyph metrics scale exactly linearly with <see cref="SKFont.Size"/> for a
 /// fixed typeface, so no iteration/binary search is needed. Used by <see cref="HeatmapDrawing"/> to size
-/// tick labels and axis titles to their region instead of a hardcoded <see cref="SKFont.Size"/>.
+/// each <see cref="OMTextGroup"/> (e.g. tick labels, axis titles) to its region, and by
+/// <see cref="FigurePdfGenerator"/> to size a figure's letter labels — both instead of a hardcoded
+/// <see cref="SKFont.Size"/>.
 /// </summary>
 internal static class TextFitting
 {

@@ -34,12 +34,11 @@ internal static class HeatmapDrawing
     /// </summary>
     internal static void Draw(SKCanvas canvas, HeatmapLayoutData layout)
     {
-        using var tickFont = new SKFont { Size = TextFitting.FitUniformSize(layout.TickLabels) };
-        using var titleFont = new SKFont { Size = TextFitting.FitUniformSize(layout.AxisTitles) };
-
         // Axes
-        DrawLine(canvas, layout.XAxis);
-        DrawLine(canvas, layout.YAxis);
+        foreach (var line in layout.Lines)
+        {
+            DrawLine(canvas, line);
+        }
 
         // Colored grid
         foreach (var cellRect in layout.CellRects)
@@ -47,14 +46,21 @@ internal static class HeatmapDrawing
             DrawRect(canvas, cellRect);
         }
 
-        foreach (var textBox in layout.TickLabels)
+        foreach (var group in layout.TextGroups)
         {
-            DrawTextBox(canvas, textBox, tickFont);
+            DrawTextGroup(canvas, group);
         }
+    }
 
-        foreach (var textBox in layout.AxisTitles)
+    // Every box in a group shares one font size (the smallest fit across the group), regardless of
+    // what the group's text represents - that's the whole point of grouping them.
+    private static void DrawTextGroup(SKCanvas canvas, OMTextGroup group)
+    {
+        using var font = new SKFont { Size = TextFitting.FitUniformSize(group.Boxes) };
+
+        foreach (var textBox in group.Boxes)
         {
-            DrawTextBox(canvas, textBox, titleFont);
+            DrawTextBox(canvas, textBox, font);
         }
     }
 

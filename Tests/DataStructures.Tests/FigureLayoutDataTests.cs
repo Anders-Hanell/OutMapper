@@ -14,11 +14,11 @@ public class FigureLayoutDataTests
 
     private static HeatmapLayoutData DefaultHeatmapLayout(double left, double top) =>
         HeatmapLayoutData.Create(
-            xAxis: new OMLine(new OMPoint(left, top + 40), new OMPoint(left + 40, top + 40), Black, 2),
-            yAxis: new OMLine(new OMPoint(left, top + 40), new OMPoint(left, top), Black, 2),
+            lines: ImmutableArray.Create(
+                new OMLine(new OMPoint(left, top + 40), new OMPoint(left + 40, top + 40), Black, 2),
+                new OMLine(new OMPoint(left, top + 40), new OMPoint(left, top), Black, 2)),
             cellRects: ImmutableArray.Create(DefaultRect(left, top, 40, 40)),
-            tickLabels: ImmutableArray<OMTextBox>.Empty,
-            axisTitles: ImmutableArray<OMTextBox>.Empty)
+            textGroups: ImmutableArray<OMTextGroup>.Empty)
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
     private static Result<FigureLayoutData> CreateValid(

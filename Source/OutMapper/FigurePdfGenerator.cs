@@ -37,20 +37,11 @@ internal static class FigurePdfGenerator
             HeatmapDrawing.Draw(canvas, heatmapLayout);
         }
 
-        if (!layout.Labels.IsEmpty)
+        using var labelFont = new SKFont { Size = TextFitting.FitUniformSize(layout.Labels), Embolden = true };
+
+        foreach (var labelBox in layout.Labels)
         {
-            using var labelPaint = new SKPaint
-            {
-                Color = SKColors.Black,
-                IsAntialias = true
-            };
-
-            using var labelFont = new SKFont { Size = 14, Embolden = true };
-
-            foreach (var labelBox in layout.Labels)
-            {
-                DrawLabel(canvas, labelBox, labelFont, labelPaint);
-            }
+            DrawLabel(canvas, labelBox, labelFont);
         }
 
         document.EndPage();
@@ -61,8 +52,16 @@ internal static class FigurePdfGenerator
 
     // Top-right, not top-left: the rotated y-axis title (when present) occupies the cell's left edge
     // and can run taller than the cell, so top-left risks a collision.
-    private static void DrawLabel(SKCanvas canvas, OMTextBox labelBox, SKFont labelFont, SKPaint labelPaint) =>
+    private static void DrawLabel(SKCanvas canvas, OMTextBox labelBox, SKFont labelFont)
+    {
+        using var labelPaint = new SKPaint
+        {
+            Color = SKColors.Black,
+            IsAntialias = true
+        };
+
         canvas.DrawText(
             labelBox.Text, (float)labelBox.Rect.TopRight.X, (float)labelBox.Rect.BottomRight.Y - 2f,
             SKTextAlign.Right, labelFont, labelPaint);
+    }
 }

@@ -23,14 +23,19 @@ public class FigureLayoutTests
         FigureDrawData.Create(rowCount, colCount, cellHasGraph, graphs, labelStyle)
             .Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
 
-    // A HeatmapLayoutData doesn't expose its target area as a single rect, but XAxis/YAxis
-    // (built from areaLeft/areaTop/areaWidth/areaHeight by Algorithms.HeatmapLayout.Compute) pin it down:
-    // the Y axis runs from (areaLeft, areaTop + areaHeight) up to (areaLeft, areaTop).
-    private static OMPoint AreaTopLeft(HeatmapLayoutData layout) => layout.YAxis.End;
+    // A HeatmapLayoutData doesn't expose its target area as a single rect, but its Lines
+    // (built from areaLeft/areaTop/areaWidth/areaHeight by Algorithms.HeatmapLayout.Compute, in the
+    // fixed order X axis then Y axis) pin it down: the Y axis runs from (areaLeft, areaTop + areaHeight)
+    // up to (areaLeft, areaTop).
+    private static OMLine XAxis(HeatmapLayoutData layout) => layout.Lines[0];
 
-    private static double AreaWidth(HeatmapLayoutData layout) => layout.XAxis.End.X - layout.XAxis.Start.X;
+    private static OMLine YAxis(HeatmapLayoutData layout) => layout.Lines[1];
 
-    private static double AreaHeight(HeatmapLayoutData layout) => layout.YAxis.Start.Y - layout.YAxis.End.Y;
+    private static OMPoint AreaTopLeft(HeatmapLayoutData layout) => YAxis(layout).End;
+
+    private static double AreaWidth(HeatmapLayoutData layout) => XAxis(layout).End.X - XAxis(layout).Start.X;
+
+    private static double AreaHeight(HeatmapLayoutData layout) => YAxis(layout).Start.Y - YAxis(layout).End.Y;
 
     [Fact]
     public void Compute_lays_the_grid_out_onto_a_fixed_size_page()
@@ -117,8 +122,9 @@ public class FigureLayoutTests
         // its own fully computed cell colors, tick labels, and axis titles - not just a bare target rect.
         var heatmapLayout = layout.HeatmapLayouts.Single();
         heatmapLayout.CellRects.Should().NotBeEmpty();
-        heatmapLayout.TickLabels.Should().NotBeEmpty();
-        heatmapLayout.AxisTitles.Select(box => box.Text).Should().Equal("ICP", "PRx");
+        // HeatmapLayout.Compute always emits exactly two groups, in this fixed order: ticks, then titles.
+        heatmapLayout.TextGroups[0].Boxes.Should().NotBeEmpty();
+        heatmapLayout.TextGroups[1].Boxes.Select(box => box.Text).Should().Equal("ICP", "PRx");
     }
 
     [Fact]

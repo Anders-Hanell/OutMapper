@@ -11,49 +11,47 @@ namespace DataStructures;
 public sealed class HeatmapLayoutData
 {
     private HeatmapLayoutData(
-        OMLine xAxis, OMLine yAxis,
+        ImmutableArray<OMLine> lines,
         ImmutableArray<OMRect> cellRects,
-        ImmutableArray<OMTextBox> tickLabels,
-        ImmutableArray<OMTextBox> axisTitles)
+        ImmutableArray<OMTextGroup> textGroups)
     {
         // Private constructor to make sure object creation goes through Create().
-        XAxis = xAxis;
-        YAxis = yAxis;
+        Lines = lines;
         CellRects = cellRects;
-        TickLabels = tickLabels;
-        AxisTitles = axisTitles;
+        TextGroups = textGroups;
     }
 
-    public OMLine XAxis { get; }
-    public OMLine YAxis { get; }
+    /// <summary>The heatmap's axis lines (X then Y) — this class holds layout data, not heatmap-specific
+    /// knowledge, so it doesn't track which line is which.</summary>
+    public ImmutableArray<OMLine> Lines { get; }
 
     /// <summary>Row-major, same indexing as <see cref="GraphDrawData.CellColorsRowMajor"/>.</summary>
     public ImmutableArray<OMRect> CellRects { get; }
 
-    /// <summary>Every X-axis and Y-axis tick label. Empty when the source graph's DrawAxisTickLabels is false.</summary>
-    public ImmutableArray<OMTextBox> TickLabels { get; }
-
-    /// <summary>0, 1, or 2 entries (X title, Y title) depending on the source graph's DrawAxisTitles flag.</summary>
-    public ImmutableArray<OMTextBox> AxisTitles { get; }
+    /// <summary>
+    /// Text to render, grouped by shared font size (e.g. the axis tick labels form one group, the axis
+    /// titles another) — this class holds layout data, not heatmap-specific knowledge, so it doesn't
+    /// track which group is which. A group may be empty (e.g. when the source graph's DrawAxisTickLabels
+    /// or DrawAxisTitles is false).
+    /// </summary>
+    public ImmutableArray<OMTextGroup> TextGroups { get; }
 
     public static Result<HeatmapLayoutData> Create(
-        OMLine xAxis, OMLine yAxis,
+        ImmutableArray<OMLine> lines,
         ImmutableArray<OMRect> cellRects,
-        ImmutableArray<OMTextBox> tickLabels,
-        ImmutableArray<OMTextBox> axisTitles)
+        ImmutableArray<OMTextGroup> textGroups)
     {
         if (cellRects.Any(rect => rect.Width <= 0 || rect.Height <= 0))
         {
             return new Failure<HeatmapLayoutData>("The heatmap's drawing area is too small to lay out.");
         }
 
-        if (tickLabels.Any(box => box.Rect.Width <= 0 || box.Rect.Height <= 0)
-            || axisTitles.Any(box => box.Rect.Width <= 0 || box.Rect.Height <= 0))
+        if (textGroups.Any(group => group.Boxes.Any(box => box.Rect.Width <= 0 || box.Rect.Height <= 0)))
         {
             return new Failure<HeatmapLayoutData>("The heatmap's drawing area is too small to lay out.");
         }
 
         return new Success<HeatmapLayoutData>(
-            new HeatmapLayoutData(xAxis, yAxis, cellRects, tickLabels, axisTitles));
+            new HeatmapLayoutData(lines, cellRects, textGroups));
     }
 }

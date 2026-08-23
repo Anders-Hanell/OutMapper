@@ -63,8 +63,10 @@ public class HeatmapLayoutTests
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
         var black = new OMColor(0, 0, 0);
-        layout.XAxis.Should().Be(new OMLine(new OMPoint(10, 70), new OMPoint(110, 70), black, 2));
-        layout.YAxis.Should().Be(new OMLine(new OMPoint(10, 70), new OMPoint(10, 20), black, 2));
+        // Fixed order: index 0 is the X axis, index 1 the Y axis.
+        layout.Lines.Should().Equal(
+            new OMLine(new OMPoint(10, 70), new OMPoint(110, 70), black, 2),
+            new OMLine(new OMPoint(10, 70), new OMPoint(10, 20), black, 2));
     }
 
     [Fact]
@@ -99,6 +101,11 @@ public class HeatmapLayoutTests
 
     private static double CenterY(OMRect rect) => rect.TopLeft.Y + rect.Height / 2.0;
 
+    // HeatmapLayout.Compute always emits exactly two groups, in this fixed order.
+    private static ImmutableArray<OMTextBox> TickLabels(HeatmapLayoutData layout) => layout.TextGroups[0].Boxes;
+
+    private static ImmutableArray<OMTextBox> AxisTitles(HeatmapLayoutData layout) => layout.TextGroups[1].Boxes;
+
     [Fact]
     public void Compute_returns_no_ticks_or_titles_when_both_flags_are_false()
     {
@@ -107,8 +114,8 @@ public class HeatmapLayoutTests
         var layout = HeatmapLayout.Compute(data, areaLeft: 0, areaTop: 0, areaWidth: 100, areaHeight: 100)
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
-        layout.TickLabels.Should().BeEmpty();
-        layout.AxisTitles.Should().BeEmpty();
+        TickLabels(layout).Should().BeEmpty();
+        AxisTitles(layout).Should().BeEmpty();
     }
 
     [Fact]
@@ -123,7 +130,7 @@ public class HeatmapLayoutTests
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
         // X ticks are built (and appear) before Y ticks; 3 column-boundary ticks then 2 row-boundary ticks.
-        var xTicks = layout.TickLabels.Take(3).ToImmutableArray();
+        var xTicks = TickLabels(layout).Take(3).ToImmutableArray();
         xTicks.Select(box => box.Text).Should().Equal("0", "1.5", "3");
         xTicks.Select(box => CenterX(box.Rect)).Should().Equal(0, 45, 90);
         xTicks.Should().OnlyContain(box => box.Rotation == OMTextRotation.Horizontal);
@@ -137,11 +144,11 @@ public class HeatmapLayoutTests
         var layout = HeatmapLayout.Compute(data, areaLeft: 0, areaTop: 0, areaWidth: 100, areaHeight: 100)
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
-        layout.AxisTitles.Should().HaveCount(2);
-        layout.AxisTitles[0].Text.Should().Be("ICP");
-        layout.AxisTitles[0].Rotation.Should().Be(OMTextRotation.Horizontal);
-        layout.AxisTitles[1].Text.Should().Be("PRx");
-        layout.AxisTitles[1].Rotation.Should().Be(OMTextRotation.CounterClockwise90);
+        AxisTitles(layout).Should().HaveCount(2);
+        AxisTitles(layout)[0].Text.Should().Be("ICP");
+        AxisTitles(layout)[0].Rotation.Should().Be(OMTextRotation.Horizontal);
+        AxisTitles(layout)[1].Text.Should().Be("PRx");
+        AxisTitles(layout)[1].Rotation.Should().Be(OMTextRotation.CounterClockwise90);
     }
 
     [Fact]
@@ -156,15 +163,15 @@ public class HeatmapLayoutTests
             .Should().BeOfType<Success<HeatmapLayoutData>>().Subject.Value;
 
         // X ticks (indices 0-1) come before Y ticks (indices 2-3).
-        layout.TickLabels.Should().HaveCount(4);
-        layout.TickLabels[0].Rect.Height.Should().Be(20);
-        layout.TickLabels[1].Rect.Height.Should().Be(20);
-        layout.TickLabels[2].Rect.Width.Should().Be(26);
-        layout.TickLabels[3].Rect.Width.Should().Be(26);
+        TickLabels(layout).Should().HaveCount(4);
+        TickLabels(layout)[0].Rect.Height.Should().Be(20);
+        TickLabels(layout)[1].Rect.Height.Should().Be(20);
+        TickLabels(layout)[2].Rect.Width.Should().Be(26);
+        TickLabels(layout)[3].Rect.Width.Should().Be(26);
 
-        layout.AxisTitles.Should().HaveCount(2);
-        layout.AxisTitles[0].Rect.Height.Should().Be(26);
-        layout.AxisTitles[1].Rect.Width.Should().Be(26);
+        AxisTitles(layout).Should().HaveCount(2);
+        AxisTitles(layout)[0].Rect.Height.Should().Be(26);
+        AxisTitles(layout)[1].Rect.Width.Should().Be(26);
     }
 
     [Fact]

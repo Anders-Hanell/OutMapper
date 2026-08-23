@@ -90,7 +90,15 @@ public static class HeatmapLayout
         var xAxis = new OMLine(new OMPoint(areaLeft, axisBottom), new OMPoint(axisRight, axisBottom), AxisColor, AxisLineWidth);
         var yAxis = new OMLine(new OMPoint(areaLeft, axisBottom), new OMPoint(areaLeft, areaTop), AxisColor, AxisLineWidth);
 
-        return HeatmapLayoutData.Create(xAxis, yAxis, cellRects.ToImmutableArray(), tickLabels, axisTitles);
+        // Fixed order relied on by tests: index 0 is the X axis, index 1 the Y axis. HeatmapLayoutData
+        // itself doesn't track which line is which - only its callers do.
+        var lines = ImmutableArray.Create(xAxis, yAxis);
+
+        // Fixed order relied on by tests: index 0 is the tick-label group, index 1 the axis-title group.
+        // HeatmapLayoutData itself doesn't track which is which - only its callers do.
+        var textGroups = ImmutableArray.Create(new OMTextGroup(tickLabels), new OMTextGroup(axisTitles));
+
+        return HeatmapLayoutData.Create(lines, cellRects.ToImmutableArray(), textGroups);
     }
 
     /// <summary>
