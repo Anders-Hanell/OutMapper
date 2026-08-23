@@ -102,20 +102,41 @@ internal static class FigureService
                 projectFolder ?? string.Empty, figureName, Success: false, "No project or figure was specified.", Figure: null);
         }
 
+        switch (BuildDrawData(fileSystem, projectFolder, rowCount, colCount, cellAnalysisNames, labelStyle))
+        {
+            case Success<FigureDrawData> success:
+                var config = new FigureConfigDto
+                {
+                    RowCount = rowCount,
+                    ColCount = colCount,
+                    CellAnalysisNames = cellAnalysisNames.ToArray(),
+                    LabelStyle = labelStyle
+                };
+                WriteConfig(fileSystem, projectFolder, figureName, config);
+
+                return new CreateFigureGraphResponse(projectFolder, figureName, Success: true, ErrorMessage: null, success.Value);
+            case Failure<FigureDrawData> failure:
+                return new CreateFigureGraphResponse(projectFolder, figureName, Success: false, failure.Error, Figure: null);
+            default:
+                return new CreateFigureGraphResponse(
+                    projectFolder, figureName, Success: false, "Could not build the figure's draw data.", Figure: null);
+        }
+    }
+
+    /// <summary>
+    /// Reads each assigned cell's persisted graph data and assembles the figure's draw data, without
+    /// persisting anything. Used both by <see cref="CreateGraph"/> (which additionally writes the
+    /// figure's config on success) and by OutMapper's live preview, which must not have the side effect
+    /// of saving the figure before the user clicks "Create".
+    /// </summary>
+    internal static Result<FigureDrawData> BuildDrawData(
+        IFileSystem fileSystem, string projectFolder, int rowCount, int colCount,
+        ImmutableArray<string?> cellAnalysisNames, FigureLabelStyle labelStyle)
+    {
         if (rowCount <= 0 || colCount <= 0 || cellAnalysisNames.Length != rowCount * colCount)
         {
-            return new CreateFigureGraphResponse(
-                projectFolder, figureName, Success: false, "The figure's grid dimensions are invalid.", Figure: null);
+            return new Failure<FigureDrawData>("The figure's grid dimensions are invalid.");
         }
-
-        var config = new FigureConfigDto
-        {
-            RowCount = rowCount,
-            ColCount = colCount,
-            CellAnalysisNames = cellAnalysisNames.ToArray(),
-            LabelStyle = labelStyle
-        };
-        WriteConfig(fileSystem, projectFolder, figureName, config);
 
         var cellHasGraph = new List<bool>(rowCount * colCount);
         var graphs = new List<GraphDrawData>();
@@ -135,9 +156,7 @@ internal static class FigureService
                     var graph = AnalysisService.ReadPersistedGraphData(fileSystem, projectFolder, analysisName);
                     if (graph is null)
                     {
-                        return new CreateFigureGraphResponse(
-                            projectFolder, figureName, Success: false,
-                            $"No persisted graph data for analysis '{analysisName}'.", Figure: null);
+                        return new Failure<FigureDrawData>($"No persisted graph data for analysis '{analysisName}'.");
                     }
 
                     cellHasGraph.Add(true);
@@ -146,16 +165,7 @@ internal static class FigureService
             }
         }
 
-        switch (FigureDrawData.Create(rowCount, colCount, cellHasGraph, graphs, labelStyle))
-        {
-            case Success<FigureDrawData> success:
-                return new CreateFigureGraphResponse(projectFolder, figureName, Success: true, ErrorMessage: null, success.Value);
-            case Failure<FigureDrawData> failure:
-                return new CreateFigureGraphResponse(projectFolder, figureName, Success: false, failure.Error, Figure: null);
-            default:
-                return new CreateFigureGraphResponse(
-                    projectFolder, figureName, Success: false, "Could not build the figure's draw data.", Figure: null);
-        }
+        return FigureDrawData.Create(rowCount, colCount, cellHasGraph, graphs, labelStyle);
     }
 
     private static FigureLayoutResponse NoLayout(string projectFolder, string figureName)

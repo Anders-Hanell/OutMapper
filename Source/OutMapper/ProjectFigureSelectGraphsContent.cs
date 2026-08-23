@@ -1,10 +1,14 @@
 using System.Collections.Immutable;
+using System.Runtime.InteropServices.WindowsRuntime;
 using DataStructures;
 using Messages;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using TaskManager;
+using Windows.Storage.Streams;
 
 namespace OutMapper;
 
@@ -17,11 +21,16 @@ public sealed class ProjectFigureSelectGraphsContent : Border
 
     internal static ProjectFigureSelectGraphsContent? Current { get; private set; }
 
+    private const int PreviewMaxDimensionPx = 900;
+
     private readonly IFolderOpener _folderOpener;
     private readonly Grid _cellsGrid;
     private readonly TextBlock _noSizeLabel;
     private readonly ComboBox _labelStyleComboBox;
     private readonly TextBlock _statusLabel;
+    private readonly Image _previewImage;
+    private readonly TextBlock _previewPlaceholder;
+    private readonly DispatcherTimer _previewDebounceTimer;
     private string? _currentProjectFolder;
     private string? _currentFigureName;
     private int _rowCount;
@@ -66,6 +75,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
                 LowercaseLabelsOptionText => FigureLabelStyle.Lowercase,
                 _ => FigureLabelStyle.None
             };
+            SchedulePreviewUpdate();
         };
 
         var createButton = new Button
@@ -96,7 +106,39 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             Foreground = GetThemeBrush("SystemControlForegroundAccentBrush")
         };
 
-        Child = new StackPanel
+        _previewImage = new Image
+        {
+            Stretch = Stretch.Uniform,
+            Visibility = Visibility.Collapsed
+        };
+
+        _previewPlaceholder = new TextBlock
+        {
+            Text = "Set a size for this figure first.",
+            TextWrapping = TextWrapping.Wrap,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = GetThemeBrush("SystemControlForegroundBaseMediumBrush")
+        };
+
+        var previewPane = new Border
+        {
+            MinWidth = 280,
+            Padding = new Thickness(16),
+            Margin = new Thickness(24, 0, 0, 0),
+            CornerRadius = new CornerRadius(8),
+            Background = GetThemeBrush("SystemControlBackgroundChromeMediumBrush"),
+            Child = new Grid { Children = { _previewPlaceholder, _previewImage } }
+        };
+
+        _previewDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        _previewDebounceTimer.Tick += (_, _) =>
+        {
+            _previewDebounceTimer.Stop();
+            UpdatePreview();
+        };
+
+        var settingsColumn = new StackPanel
         {
             Spacing = 12,
             Children =
@@ -125,6 +167,24 @@ public sealed class ProjectFigureSelectGraphsContent : Border
                 _statusLabel
             }
         };
+
+        var contentGrid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                // Fixed rather than Auto: an Auto column is measured at infinite width, so the status
+                // label's wrapping text (e.g. a long "Saved to <path>" message) would never actually wrap
+                // and would inflate this column, squeezing the preview pane out of the available space.
+                new ColumnDefinition { Width = new GridLength(340) },
+                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }
+            }
+        };
+        Grid.SetColumn(settingsColumn, 0);
+        Grid.SetColumn(previewPane, 1);
+        contentGrid.Children.Add(settingsColumn);
+        contentGrid.Children.Add(previewPane);
+
+        Child = contentGrid;
 
         Current = this;
     }
@@ -194,6 +254,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
         if (_rowCount <= 0 || _colCount <= 0)
         {
             _noSizeLabel.Visibility = Visibility.Visible;
+            SchedulePreviewUpdate();
             return;
         }
 
@@ -243,6 +304,8 @@ public sealed class ProjectFigureSelectGraphsContent : Border
                     {
                         _cellAnalysisNames[index] = selected == NoneOptionText ? null : selected;
                     }
+
+                    SchedulePreviewUpdate();
                 };
 
                 Grid.SetRow(comboBox, row);
@@ -250,6 +313,59 @@ public sealed class ProjectFigureSelectGraphsContent : Border
                 _cellsGrid.Children.Add(comboBox);
             }
         }
+
+        SchedulePreviewUpdate();
+    }
+
+    private void SchedulePreviewUpdate()
+    {
+        _previewDebounceTimer.Stop();
+        _previewDebounceTimer.Start();
+    }
+
+    private async void UpdatePreview()
+    {
+        if (_currentProjectFolder is null || _rowCount <= 0 || _colCount <= 0)
+        {
+            ShowPreviewPlaceholder("Set a size for this figure first.");
+            return;
+        }
+
+        var buildResult = FigureService.BuildDrawData(
+            LocalFileSystem.Instance, _currentProjectFolder, _rowCount, _colCount,
+            _cellAnalysisNames.ToImmutableArray(), _labelStyle);
+
+        if (buildResult is not Success<FigureDrawData> success)
+        {
+            ShowPreviewPlaceholder("Select at least one graph to preview the figure.");
+            return;
+        }
+
+        var pngBytes = FigurePreviewRenderer.RenderPng(success.Value, PreviewMaxDimensionPx);
+        if (pngBytes is null)
+        {
+            ShowPreviewPlaceholder("Could not render a preview.");
+            return;
+        }
+
+        var bitmap = new BitmapImage();
+        using (var stream = new InMemoryRandomAccessStream())
+        {
+            await stream.WriteAsync(pngBytes.AsBuffer());
+            stream.Seek(0);
+            await bitmap.SetSourceAsync(stream);
+        }
+
+        _previewImage.Source = bitmap;
+        _previewImage.Visibility = Visibility.Visible;
+        _previewPlaceholder.Visibility = Visibility.Collapsed;
+    }
+
+    private void ShowPreviewPlaceholder(string message)
+    {
+        _previewPlaceholder.Text = message;
+        _previewPlaceholder.Visibility = Visibility.Visible;
+        _previewImage.Visibility = Visibility.Collapsed;
     }
 
     private void CreateFigureGraph()

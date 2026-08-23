@@ -32,36 +32,11 @@ internal static class FigurePdfGenerator
         using var canvas = document.BeginPage((float)layout.PageWidth, (float)layout.PageHeight);
         canvas.Clear(SKColors.White);
 
-        foreach (var heatmapLayout in layout.HeatmapLayouts)
-        {
-            HeatmapDrawing.Draw(canvas, heatmapLayout);
-        }
-
-        using var labelFont = new SKFont { Size = TextFitting.FitUniformSize(layout.Labels), Embolden = true };
-
-        foreach (var labelBox in layout.Labels)
-        {
-            DrawLabel(canvas, labelBox, labelFont);
-        }
+        FigureDrawing.Paint(canvas, layout);
 
         document.EndPage();
         document.Close();
 
         return stream.ToArray();
-    }
-
-    // Top-right, not top-left: the rotated y-axis title (when present) occupies the cell's left edge
-    // and can run taller than the cell, so top-left risks a collision.
-    private static void DrawLabel(SKCanvas canvas, OMTextBox labelBox, SKFont labelFont)
-    {
-        using var labelPaint = new SKPaint
-        {
-            Color = SKColors.Black,
-            IsAntialias = true
-        };
-
-        canvas.DrawText(
-            labelBox.Text, (float)labelBox.Rect.TopRight.X, (float)labelBox.Rect.BottomRight.Y - 2f,
-            SKTextAlign.Right, labelFont, labelPaint);
     }
 }

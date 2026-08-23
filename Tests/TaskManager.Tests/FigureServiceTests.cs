@@ -89,6 +89,48 @@ public class FigureServiceTests
     }
 
     [Fact]
+    public void BuildDrawData_leaves_an_unassigned_cell_without_a_graph()
+    {
+        var fileSystem = new InMemoryFileSystem();
+        fileSystem.CreateDirectory(ProjectFolder);
+
+        var result = FigureService.BuildDrawData(
+            fileSystem, ProjectFolder, rowCount: 1, colCount: 1, ImmutableArray.Create((string?)null),
+            FigureLabelStyle.None);
+
+        var figure = result.Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
+        figure.CellHasGraph.Single().Should().BeFalse();
+        figure.Graphs.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildDrawData_fails_when_the_assigned_analysis_has_no_persisted_graph()
+    {
+        var fileSystem = new InMemoryFileSystem();
+        fileSystem.CreateDirectory(ProjectFolder);
+
+        var result = FigureService.BuildDrawData(
+            fileSystem, ProjectFolder, rowCount: 1, colCount: 1, ImmutableArray.Create((string?)"MyAnalysis"),
+            FigureLabelStyle.None);
+
+        result.Should().BeOfType<Failure<FigureDrawData>>();
+    }
+
+    [Fact]
+    public void BuildDrawData_does_not_persist_a_figure_config()
+    {
+        var fileSystem = new InMemoryFileSystem();
+        fileSystem.CreateDirectory(ProjectFolder);
+
+        FigureService.BuildDrawData(
+            fileSystem, ProjectFolder, rowCount: 1, colCount: 1, ImmutableArray.Create((string?)null),
+            FigureLabelStyle.Uppercase);
+
+        var layout = FigureService.ReadLayout(fileSystem, ProjectFolder, "MyFigure");
+        layout.LayoutExists.Should().BeFalse();
+    }
+
+    [Fact]
     public void SaveSize_preserves_the_previously_saved_label_style()
     {
         var fileSystem = new InMemoryFileSystem();
