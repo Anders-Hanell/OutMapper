@@ -4,15 +4,10 @@ using Algorithms;
 using DataStructures;
 
 /// <summary>
-/// A plain synchronous forwarding call from OutMapper into TaskManager's Algorithms reference, so
-/// OutMapper never needs a project reference to Algorithms itself (which owns the actual, pure,
-/// Skia-free heatmap geometry computation). Internal like every other class here — reachable from
-/// OutMapper only via the <c>InternalsVisibleTo</c> grant in TaskManager.csproj, not by being public.
-/// Deliberately synchronous rather than going through the async Message/GatewayToOutMapper pipeline:
-/// that pipeline has no built-in request/response correlation (every existing flow is routed by
-/// message type to one singleton UI screen) and depends on a live UI DispatcherQueue having been wired
-/// up via GatewayToTaskManager.Initialize(), which isn't available in a plain test host — round-tripping
-/// this trivial, pure computation through it would make it untestable without new test-only plumbing.
+/// Forwards to TaskManager's Algorithms reference, which owns the actual, pure, Skia-free heatmap
+/// geometry computation. Called only from <see cref="TaskManagerService.HandleComputeHeatmapLayoutRequestAsync"/>
+/// — OutMapper reaches this via a <see cref="Messages.ComputeHeatmapLayoutRequest"/>/<see cref="Messages.ComputeHeatmapLayoutResponse"/>
+/// round trip through the gateway, correlated by request id, rather than calling in directly.
 /// </summary>
 internal static class HeatmapLayoutService
 {

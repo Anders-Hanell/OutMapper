@@ -7,7 +7,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using TaskManager;
 using Windows.Storage.Streams;
 
 namespace OutMapper;
@@ -331,9 +330,12 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             return;
         }
 
-        var buildResult = FigureService.BuildDrawData(
-            LocalFileSystem.Instance, _currentProjectFolder, _rowCount, _colCount,
+        var buildRequest = new BuildFigureDrawDataRequest(
+            Guid.NewGuid(), _currentProjectFolder, _rowCount, _colCount,
             _cellAnalysisNames.ToImmutableArray(), _labelStyle);
+        var buildResponse = await GatewayRequestCorrelator
+            .SendAsync<BuildFigureDrawDataRequest, BuildFigureDrawDataResponse>(buildRequest);
+        var buildResult = buildResponse.Result;
 
         if (buildResult is not Success<FigureDrawData> success)
         {
@@ -341,7 +343,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             return;
         }
 
-        var pngBytes = FigurePreviewRenderer.RenderPng(success.Value, PreviewMaxDimensionPx);
+        var pngBytes = await FigurePreviewRenderer.RenderPngAsync(success.Value, PreviewMaxDimensionPx);
         if (pngBytes is null)
         {
             ShowPreviewPlaceholder("Could not render a preview.");
@@ -404,7 +406,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
         }
     }
 
-    internal void OnCreateFigureGraphResponseReceived(CreateFigureGraphResponse response)
+    internal async void OnCreateFigureGraphResponseReceived(CreateFigureGraphResponse response)
     {
         if (!response.Success)
         {
@@ -412,7 +414,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             return;
         }
 
-        var outputPath = FigureGraphPdfService.GeneratePdf(response.ProjectFolder, response.FigureName, response);
+        var outputPath = await FigureGraphPdfService.GeneratePdfAsync(response.ProjectFolder, response.FigureName, response);
 
         _statusLabel.Text = outputPath is null
             ? "Generated, but the PDF could not be written."

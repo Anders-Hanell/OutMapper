@@ -461,7 +461,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
-    internal void OnGenerateAnalysisGraphResponseReceived(GenerateAnalysisGraphResponse response)
+    internal async void OnGenerateAnalysisGraphResponseReceived(GenerateAnalysisGraphResponse response)
     {
         if (!response.Success)
         {
@@ -469,7 +469,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
             return;
         }
 
-        var outputPath = AnalysisGraphPdfService.GeneratePdf(response.ProjectFolder, response.AnalysisName, response);
+        var outputPath = await AnalysisGraphPdfService.GeneratePdfAsync(response.ProjectFolder, response.AnalysisName, response);
 
         var resultMessage = outputPath is null
             ? $"Generated with {response.MatchedPatientCount} of {response.TotalPatientCount} patient(s) matched, but the PDF could not be written."

@@ -1,6 +1,6 @@
 using SkiaSharp;
 using DataStructures;
-using TaskManager;
+using Messages;
 
 namespace OutMapper;
 
@@ -11,10 +11,11 @@ namespace OutMapper;
 /// </summary>
 internal static class FigurePreviewRenderer
 {
-    internal static byte[]? RenderPng(FigureDrawData figure, int maxDimensionPx)
+    internal static async Task<byte[]?> RenderPngAsync(FigureDrawData figure, int maxDimensionPx)
     {
-        var layoutResult = FigureLayoutService.ComputeLayout(figure);
-        if (layoutResult is not Success<FigureLayoutData> layoutSuccess)
+        var request = new ComputeFigureLayoutRequest(Guid.NewGuid(), figure);
+        var response = await GatewayRequestCorrelator.SendAsync<ComputeFigureLayoutRequest, ComputeFigureLayoutResponse>(request);
+        if (response.Result is not Success<FigureLayoutData> layoutSuccess)
         {
             return null;
         }

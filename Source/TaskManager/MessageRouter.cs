@@ -31,6 +31,9 @@ internal static class MessageRouter
             SaveFigureSizeRequest saveFigureSizeRequest => TaskManagerService.HandleSaveFigureSizeRequestAsync(saveFigureSizeRequest),
             AnalysesWithGraphListRequest analysesWithGraphListRequest => TaskManagerService.HandleAnalysesWithGraphListRequestAsync(analysesWithGraphListRequest),
             CreateFigureGraphRequest createFigureGraphRequest => TaskManagerService.HandleCreateFigureGraphRequestAsync(createFigureGraphRequest),
+            ComputeHeatmapLayoutRequest computeHeatmapLayoutRequest => TaskManagerService.HandleComputeHeatmapLayoutRequestAsync(computeHeatmapLayoutRequest),
+            ComputeFigureLayoutRequest computeFigureLayoutRequest => TaskManagerService.HandleComputeFigureLayoutRequestAsync(computeFigureLayoutRequest),
+            BuildFigureDrawDataRequest buildFigureDrawDataRequest => TaskManagerService.HandleBuildFigureDrawDataRequestAsync(buildFigureDrawDataRequest),
             _ => Task.CompletedTask
         };
     }

@@ -13,10 +13,10 @@ internal static class AnalysisGraphPdfService
     /// colored heatmap and writes it to the project's Output folder as "&lt;analysisName&gt;.pdf".
     /// Returns the written file path, or null if it could not be written.
     /// </summary>
-    public static string? GeneratePdf(string projectFolder, string analysisName, GenerateAnalysisGraphResponse graph) =>
-        GeneratePdf(LocalFileSystem.Instance, projectFolder, analysisName, graph);
+    public static Task<string?> GeneratePdfAsync(string projectFolder, string analysisName, GenerateAnalysisGraphResponse graph) =>
+        GeneratePdfAsync(LocalFileSystem.Instance, projectFolder, analysisName, graph);
 
-    internal static string? GeneratePdf(
+    internal static async Task<string?> GeneratePdfAsync(
         IFileSystem fileSystem, string? projectFolder, string analysisName, GenerateAnalysisGraphResponse graph)
     {
         if (string.IsNullOrWhiteSpace(projectFolder))
@@ -52,7 +52,7 @@ internal static class AnalysisGraphPdfService
         using var canvas = document.BeginPage(pageWidth, pageHeight);
         canvas.Clear(SKColors.White);
 
-        HeatmapDrawing.Draw(canvas, new SKRect(axisLeft, axisTop, axisRight, axisBottom), graph.Graph);
+        await HeatmapDrawing.DrawAsync(canvas, new SKRect(axisLeft, axisTop, axisRight, axisBottom), graph.Graph);
 
         // Graph title
         using var titlePaint = new SKPaint

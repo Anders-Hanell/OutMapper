@@ -13,10 +13,10 @@ namespace OutMapper;
 /// </summary>
 internal static class FigureGraphPdfService
 {
-    public static string? GeneratePdf(string projectFolder, string figureName, CreateFigureGraphResponse graph) =>
-        GeneratePdf(LocalFileSystem.Instance, projectFolder, figureName, graph);
+    public static Task<string?> GeneratePdfAsync(string projectFolder, string figureName, CreateFigureGraphResponse graph) =>
+        GeneratePdfAsync(LocalFileSystem.Instance, projectFolder, figureName, graph);
 
-    internal static string? GeneratePdf(
+    internal static async Task<string?> GeneratePdfAsync(
         IFileSystem fileSystem, string? projectFolder, string figureName, CreateFigureGraphResponse graph)
     {
         if (string.IsNullOrWhiteSpace(projectFolder))
@@ -29,7 +29,7 @@ internal static class FigureGraphPdfService
             return null;
         }
 
-        var pdfBytes = FigurePdfGenerator.Generate(graph.Figure);
+        var pdfBytes = await FigurePdfGenerator.GenerateAsync(graph.Figure);
         if (pdfBytes is null)
         {
             return null;

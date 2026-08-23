@@ -13,8 +13,9 @@ namespace OutMapper.Tests;
 public class SampleFigurePdfGenerator
 {
     [Fact]
-    public void GenerateSampleFigurePdf()
+    public async Task GenerateSampleFigurePdf()
     {
+        GatewayTestHarness.EnsureInitialized();
         var outputDirectory = SampleOutputDirectory.For(nameof(SampleFigurePdfGenerator));
 
         GraphDrawData Graph(string colorA, string colorB) => GraphDrawData.Create(
@@ -37,7 +38,7 @@ public class SampleFigurePdfGenerator
         var response = new CreateFigureGraphResponse(
             "SampleProject", "SampleFigure", Success: true, ErrorMessage: null, figure);
 
-        var outputFile = FigureGraphPdfService.GeneratePdf(
+        var outputFile = await FigureGraphPdfService.GeneratePdfAsync(
             LocalFileSystem.Instance, outputDirectory, "SampleFigure", response);
 
         outputFile.Should().NotBeNull();

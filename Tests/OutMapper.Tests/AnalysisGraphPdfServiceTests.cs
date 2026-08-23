@@ -19,8 +19,9 @@ public class AnalysisGraphPdfServiceTests
             drawAxisTitles: true).Should().BeOfType<Success<GraphDrawData>>().Subject.Value;
 
     [Fact]
-    public void GeneratePdf_writes_a_pdf_file_to_the_project_output_folder()
+    public async Task GeneratePdf_writes_a_pdf_file_to_the_project_output_folder()
     {
+        GatewayTestHarness.EnsureInitialized();
         var fileSystem = new InMemoryFileSystem();
         const string projectFolder = "/projects/MyProject";
         const string analysisName = "MyAnalysis";
@@ -37,7 +38,7 @@ public class AnalysisGraphPdfServiceTests
             AmbiguousPatientCount: 0,
             SampleGraph());
 
-        var outputFile = AnalysisGraphPdfService.GeneratePdf(fileSystem, projectFolder, analysisName, graph);
+        var outputFile = await AnalysisGraphPdfService.GeneratePdfAsync(fileSystem, projectFolder, analysisName, graph);
 
         outputFile.Should().Be(Path.Combine(
             projectFolder, ProjectFolderService.ProjectOutputFolderName, analysisName + ".pdf"));
@@ -49,11 +50,12 @@ public class AnalysisGraphPdfServiceTests
     }
 
     [Fact]
-    public void GeneratePdf_returns_null_without_a_project_folder()
+    public async Task GeneratePdf_returns_null_without_a_project_folder()
     {
+        GatewayTestHarness.EnsureInitialized();
         var fileSystem = new InMemoryFileSystem();
 
-        var outputFile = AnalysisGraphPdfService.GeneratePdf(
+        var outputFile = await AnalysisGraphPdfService.GeneratePdfAsync(
             fileSystem, projectFolder: null, "MyAnalysis",
             new GenerateAnalysisGraphResponse(
                 "MyProject", "MyAnalysis", Success: true, ErrorMessage: null, CohortName: "MyCohort",

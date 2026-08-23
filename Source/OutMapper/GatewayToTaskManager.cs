@@ -13,7 +13,8 @@ using TaskManager;
 public static class GatewayToTaskManager
 {
     private static readonly Receiver receiver = new();
-    private static DispatcherQueue? uiDispatcher;
+    private static IUiDispatcher? uiDispatcher;
+    private static Action<Message> onMessageReceived = MessageRouter.Route;
 
     /// <summary>
     /// Must be called once from the UI thread during app startup, so the dispatcher used to
@@ -22,7 +23,19 @@ public static class GatewayToTaskManager
     /// </summary>
     public static void Initialize()
     {
-        uiDispatcher = DispatcherQueue.GetForCurrentThread();
+        var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+        Initialize(dispatcherQueue is null ? null : new DispatcherQueueUiDispatcher(dispatcherQueue), MessageRouter.Route);
+    }
+
+    /// <summary>
+    /// Test-only seam: lets a unit test supply a synchronous <see cref="IUiDispatcher"/> and capture
+    /// routed messages directly, instead of requiring a live UI dispatcher thread and the real
+    /// MessageRouter targets (which are live Uno screens).
+    /// </summary>
+    internal static void Initialize(IUiDispatcher? dispatcher, Action<Message> onMessageReceived)
+    {
+        uiDispatcher = dispatcher;
+        GatewayToTaskManager.onMessageReceived = onMessageReceived;
         GatewayToOutMapper.Receiver = receiver;
     }
 
@@ -35,7 +48,7 @@ public static class GatewayToTaskManager
     /// <summary>Receive a message coming in from TaskManager, crossing back onto the UI thread.</summary>
     private static void ReceiveMessage(Message message)
     {
-        uiDispatcher?.TryEnqueue(() => MessageRouter.Route(message));
+        uiDispatcher?.Enqueue(() => onMessageReceived(message));
     }
 
     private sealed class Receiver : IGatewayReceiver

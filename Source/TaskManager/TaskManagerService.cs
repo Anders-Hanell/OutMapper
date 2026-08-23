@@ -249,6 +249,33 @@ internal static class TaskManagerService
         return Task.CompletedTask;
     }
 
+    internal static Task HandleComputeHeatmapLayoutRequestAsync(ComputeHeatmapLayoutRequest message)
+    {
+        var result = HeatmapLayoutService.ComputeLayout(
+            message.Data, message.AreaLeft, message.AreaTop, message.AreaWidth, message.AreaHeight);
+
+        GatewayToOutMapper.SendMessage(new ComputeHeatmapLayoutResponse(message.RequestId, result));
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleComputeFigureLayoutRequestAsync(ComputeFigureLayoutRequest message)
+    {
+        var result = FigureLayoutService.ComputeLayout(message.Figure);
+
+        GatewayToOutMapper.SendMessage(new ComputeFigureLayoutResponse(message.RequestId, result));
+        return Task.CompletedTask;
+    }
+
+    internal static Task HandleBuildFigureDrawDataRequestAsync(BuildFigureDrawDataRequest message)
+    {
+        var result = FigureService.BuildDrawData(
+            LocalFileSystem.Instance, message.ProjectFolder, message.RowCount, message.ColCount,
+            message.CellAnalysisNames, message.LabelStyle);
+
+        GatewayToOutMapper.SendMessage(new BuildFigureDrawDataResponse(message.RequestId, result));
+        return Task.CompletedTask;
+    }
+
     internal static bool CreateDataset(
         IFileSystem fileSystem, string? projectFolder, string datasetName, string? rawDataFolderPath)
     {

@@ -12,8 +12,9 @@ namespace OutMapper.Tests;
 public class SampleFigurePreviewGenerator
 {
     [Fact]
-    public void GenerateSampleFigurePreviewPng()
+    public async Task GenerateSampleFigurePreviewPng()
     {
+        GatewayTestHarness.EnsureInitialized();
         var outputDirectory = SampleOutputDirectory.For(nameof(SampleFigurePreviewGenerator));
 
         GraphDrawData Graph(string colorA, string colorB) => GraphDrawData.Create(
@@ -33,7 +34,7 @@ public class SampleFigurePreviewGenerator
             graphs: new[] { Graph("#2166AC", "#67A9CF"), Graph("#D1E5F0", "#FDDBC7"), Graph("#EF8A62", "#B2182B") },
             labelStyle: FigureLabelStyle.Uppercase).Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
 
-        var pngBytes = FigurePreviewRenderer.RenderPng(figure, maxDimensionPx: 900);
+        var pngBytes = await FigurePreviewRenderer.RenderPngAsync(figure, maxDimensionPx: 900);
 
         pngBytes.Should().NotBeNull();
 

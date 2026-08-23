@@ -13,8 +13,9 @@ namespace OutMapper.Tests;
 public class SamplePdfGenerator
 {
     [Fact]
-    public void GenerateSampleAnalysisPdf()
+    public async Task GenerateSampleAnalysisPdf()
     {
+        GatewayTestHarness.EnsureInitialized();
         var outputDirectory = SampleOutputDirectory.For(nameof(SamplePdfGenerator));
         var sampleGraph = GraphDrawData.Create(
             channelAName: "Heart rate",
@@ -38,7 +39,7 @@ public class SamplePdfGenerator
             AmbiguousPatientCount: 0,
             sampleGraph);
 
-        var outputFile = AnalysisGraphPdfService.GeneratePdf(
+        var outputFile = await AnalysisGraphPdfService.GeneratePdfAsync(
             LocalFileSystem.Instance, outputDirectory, "SampleAnalysis", graph);
 
         outputFile.Should().NotBeNull();

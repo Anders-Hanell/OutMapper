@@ -1,6 +1,6 @@
 using DataStructures;
+using Messages;
 using SkiaSharp;
-using TaskManager;
 
 namespace OutMapper;
 
@@ -8,17 +8,19 @@ namespace OutMapper;
 /// Draws one N x M colored heatmap grid, with optional axis tick labels and axis titles,
 /// into an arbitrary rectangle on an SkiaSharp canvas. Shared by <see cref="AnalysisGraphPdfService"/>
 /// (one full-size heatmap per PDF) and <see cref="FigureGraphPdfService"/> (a grid of smaller heatmaps).
-/// The actual cell/tick/title geometry is computed by <see cref="HeatmapLayoutService"/> (which forwards
-/// to the pure, Skia-free <c>Algorithms.HeatmapLayout</c>); this class only paints.
+/// The actual cell/tick/title geometry is computed by TaskManager (which forwards to the pure, Skia-free
+/// <c>Algorithms.HeatmapLayout</c>), reached via a <see cref="ComputeHeatmapLayoutRequest"/>/
+/// <see cref="ComputeHeatmapLayoutResponse"/> round trip through the gateway; this class only paints.
 /// </summary>
 internal static class HeatmapDrawing
 {
-    internal static void Draw(SKCanvas canvas, SKRect graphArea, GraphDrawData data)
+    internal static async Task DrawAsync(SKCanvas canvas, SKRect graphArea, GraphDrawData data)
     {
-        var layoutResult = HeatmapLayoutService.ComputeLayout(
-            data, graphArea.Left, graphArea.Top, graphArea.Width, graphArea.Height);
+        var request = new ComputeHeatmapLayoutRequest(
+            Guid.NewGuid(), data, graphArea.Left, graphArea.Top, graphArea.Width, graphArea.Height);
+        var response = await GatewayRequestCorrelator.SendAsync<ComputeHeatmapLayoutRequest, ComputeHeatmapLayoutResponse>(request);
 
-        if (layoutResult is not Success<HeatmapLayoutData> success)
+        if (response.Result is not Success<HeatmapLayoutData> success)
         {
             return;
         }

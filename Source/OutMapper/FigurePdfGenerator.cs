@@ -1,6 +1,6 @@
 using SkiaSharp;
 using DataStructures;
-using TaskManager;
+using Messages;
 
 namespace OutMapper;
 
@@ -12,10 +12,11 @@ namespace OutMapper;
 /// </summary>
 internal static class FigurePdfGenerator
 {
-    internal static byte[]? Generate(FigureDrawData figure)
+    internal static async Task<byte[]?> GenerateAsync(FigureDrawData figure)
     {
-        var layoutResult = FigureLayoutService.ComputeLayout(figure);
-        if (layoutResult is not Success<FigureLayoutData> layoutSuccess)
+        var request = new ComputeFigureLayoutRequest(Guid.NewGuid(), figure);
+        var response = await GatewayRequestCorrelator.SendAsync<ComputeFigureLayoutRequest, ComputeFigureLayoutResponse>(request);
+        if (response.Result is not Success<FigureLayoutData> layoutSuccess)
         {
             return null;
         }
