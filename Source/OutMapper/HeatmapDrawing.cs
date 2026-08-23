@@ -9,7 +9,7 @@ namespace OutMapper;
 /// into an arbitrary rectangle on an SkiaSharp canvas. Shared by <see cref="AnalysisGraphPdfService"/>
 /// (one full-size heatmap per PDF) and <see cref="FigureGraphPdfService"/> (a grid of smaller heatmaps).
 /// The actual cell/tick/title geometry is computed by <see cref="HeatmapLayoutService"/> (which forwards
-/// to the pure, Skia-free <c>Algorithms.HeatmapLayout</c>); this method only paints.
+/// to the pure, Skia-free <c>Algorithms.HeatmapLayout</c>); this class only paints.
 /// </summary>
 internal static class HeatmapDrawing
 {
@@ -23,8 +23,17 @@ internal static class HeatmapDrawing
             return;
         }
 
-        var layout = success.Value;
+        Draw(canvas, success.Value);
+    }
 
+    /// <summary>
+    /// Paints from an already-computed <see cref="HeatmapLayoutData"/> — no arithmetic, no re-derivation
+    /// of the layout. Used directly by <see cref="FigureGraphPdfService"/>, which gets one of these per
+    /// grid cell from <c>Algorithms.FigureLayout.Compute</c> instead of a plain draw rect, so a figure's
+    /// heatmaps are laid out once rather than once for sizing and again here for painting.
+    /// </summary>
+    internal static void Draw(SKCanvas canvas, HeatmapLayoutData layout)
+    {
         using var tickFont = new SKFont { Size = TextFitting.FitUniformSize(layout.TickLabels) };
         using var titleFont = new SKFont { Size = TextFitting.FitUniformSize(layout.AxisTitles) };
 
