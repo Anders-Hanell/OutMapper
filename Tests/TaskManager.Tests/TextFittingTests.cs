@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace OutMapper.Tests;
+namespace TaskManager.Tests;
 
 public class TextFittingTests
 {

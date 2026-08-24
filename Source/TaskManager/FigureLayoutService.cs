@@ -5,9 +5,9 @@ using DataStructures;
 
 /// <summary>
 /// Forwards to TaskManager's Algorithms reference, which owns the actual, pure, Skia-free figure
-/// geometry computation. Called only from <see cref="TaskManagerService.HandleComputeFigureLayoutRequestAsync"/>
-/// — OutMapper reaches this via a <see cref="Messages.ComputeFigureLayoutRequest"/>/<see cref="Messages.ComputeFigureLayoutResponse"/>
-/// round trip through the gateway, correlated by request id, rather than calling in directly.
+/// geometry computation. Called by <see cref="FigurePdfGenerator"/> and <see cref="FigurePreviewRenderer"/>,
+/// which paint from the geometry this returns — both live in TaskManager, so this is a plain in-process
+/// call, not a message.
 /// </summary>
 internal static class FigureLayoutService
 {

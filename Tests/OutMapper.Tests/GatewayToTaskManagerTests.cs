@@ -12,21 +12,14 @@ public class GatewayToTaskManagerTests
     {
         GatewayTestHarness.EnsureInitialized();
 
-        var data = GraphDrawData.Create(
-            channelAName: "A",
-            channelBName: "B",
-            channelABinEdges: ImmutableArray.Create(0.0, 1.0),
-            channelBBinEdges: ImmutableArray.Create(0.0, 1.0),
-            cellColorsRowMajor: ImmutableArray.Create("#FF0000"),
-            drawAxisTickLabels: false,
-            drawAxisTitles: false).Should().BeOfType<Success<GraphDrawData>>().Subject.Value;
-
-        var request = new ComputeHeatmapLayoutRequest(Guid.NewGuid(), data, 0, 0, 100, 100);
+        var request = new RenderFigurePreviewRequest(
+            Guid.NewGuid(), ProjectFolder: "/does/not/exist", RowCount: 1, ColCount: 1,
+            CellAnalysisNames: ImmutableArray.Create((string?)null), FigureLabelStyle.None, MaxDimensionPx: 100);
 
         var response = await GatewayRequestCorrelator
-            .SendAsync<ComputeHeatmapLayoutRequest, ComputeHeatmapLayoutResponse>(request);
+            .SendAsync<RenderFigurePreviewRequest, RenderFigurePreviewResponse>(request);
 
         response.RequestId.Should().Be(request.RequestId);
-        response.Result.Should().BeOfType<Success<HeatmapLayoutData>>();
+        response.Result.Should().BeOfType<Success<byte[]>>();
     }
 }

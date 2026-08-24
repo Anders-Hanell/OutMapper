@@ -206,6 +206,8 @@ internal static class AnalysisService
                     totalPatientCount, matchedMatrices.Count, unmatchedCount, ambiguousCount);
         }
 
+        var pdfOutputPath = AnalysisGraphPdfService.GeneratePdf(fileSystem, projectFolder, analysisName, graphDrawData);
+
         var response = new GenerateAnalysisGraphResponse(
             projectFolder,
             analysisName,
@@ -216,7 +218,8 @@ internal static class AnalysisService
             matchedMatrices.Count,
             unmatchedCount,
             ambiguousCount,
-            graphDrawData);
+            graphDrawData,
+            pdfOutputPath);
 
         WriteSummary(fileSystem, projectFolder, analysisName, settings, response);
         WriteGraphData(fileSystem, projectFolder, analysisName, graphDrawData);
@@ -278,7 +281,8 @@ internal static class AnalysisService
             matchedPatientCount,
             unmatchedPatientCount,
             ambiguousPatientCount,
-            Graph: null);
+            Graph: null,
+            PdfOutputPath: null);
 
         if (!string.IsNullOrWhiteSpace(projectFolder))
         {

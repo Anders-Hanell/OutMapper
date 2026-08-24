@@ -1,21 +1,19 @@
 using System.Collections.Immutable;
 using DataStructures;
-using TaskManager;
 using TestSupport;
 
-namespace OutMapper.Tests;
+namespace TaskManager.Tests;
 
 /// <summary>
-/// Generates a representative sample figure preview PNG, so its appearance can be inspected directly
-/// (e.g. by Claude's Read tool) while the preview rendering is still evolving.
+/// Generates a representative sample figure PDF, so its appearance can be inspected directly (e.g. by
+/// Claude's Read tool) while the layout is still evolving.
 /// </summary>
-public class SampleFigurePreviewGenerator
+public class SampleFigurePdfGenerator
 {
     [Fact]
-    public async Task GenerateSampleFigurePreviewPng()
+    public void GenerateSampleFigurePdf()
     {
-        GatewayTestHarness.EnsureInitialized();
-        var outputDirectory = SampleOutputDirectory.For(nameof(SampleFigurePreviewGenerator));
+        var outputDirectory = SampleOutputDirectory.For(nameof(SampleFigurePdfGenerator));
 
         GraphDrawData Graph(string colorA, string colorB) => GraphDrawData.Create(
             channelAName: "Heart rate",
@@ -34,12 +32,9 @@ public class SampleFigurePreviewGenerator
             graphs: new[] { Graph("#2166AC", "#67A9CF"), Graph("#D1E5F0", "#FDDBC7"), Graph("#EF8A62", "#B2182B") },
             labelStyle: FigureLabelStyle.Uppercase).Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
 
-        var pngBytes = await FigurePreviewRenderer.RenderPngAsync(figure, maxDimensionPx: 900);
+        var outputFile = FigureGraphPdfService.GeneratePdf(
+            LocalFileSystem.Instance, outputDirectory, "SampleFigure", figure);
 
-        pngBytes.Should().NotBeNull();
-
-        LocalFileSystem.Instance.CreateDirectory(outputDirectory);
-        LocalFileSystem.Instance.WriteAllBytes(
-            System.IO.Path.Combine(outputDirectory, "SampleFigurePreview.png"), pngBytes!);
+        outputFile.Should().NotBeNull();
     }
 }

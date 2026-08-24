@@ -1,10 +1,8 @@
 using System.Collections.Immutable;
 using DataStructures;
-using Messages;
-using TaskManager;
 using TestSupport;
 
-namespace OutMapper.Tests;
+namespace TaskManager.Tests;
 
 /// <summary>
 /// Generates a representative sample analysis PDF, so its appearance can be inspected directly (e.g. by
@@ -13,9 +11,8 @@ namespace OutMapper.Tests;
 public class SamplePdfGenerator
 {
     [Fact]
-    public async Task GenerateSampleAnalysisPdf()
+    public void GenerateSampleAnalysisPdf()
     {
-        GatewayTestHarness.EnsureInitialized();
         var outputDirectory = SampleOutputDirectory.For(nameof(SamplePdfGenerator));
         var sampleGraph = GraphDrawData.Create(
             channelAName: "Heart rate",
@@ -27,20 +24,8 @@ public class SamplePdfGenerator
             drawAxisTickLabels: true,
             drawAxisTitles: true).Should().BeOfType<Success<GraphDrawData>>().Subject.Value;
 
-        var graph = new GenerateAnalysisGraphResponse(
-            "SampleProject",
-            "SampleAnalysis",
-            Success: true,
-            ErrorMessage: null,
-            CohortName: "SampleCohort",
-            TotalPatientCount: 42,
-            MatchedPatientCount: 40,
-            UnmatchedPatientCount: 2,
-            AmbiguousPatientCount: 0,
-            sampleGraph);
-
-        var outputFile = await AnalysisGraphPdfService.GeneratePdfAsync(
-            LocalFileSystem.Instance, outputDirectory, "SampleAnalysis", graph);
+        var outputFile = AnalysisGraphPdfService.GeneratePdf(
+            LocalFileSystem.Instance, outputDirectory, "SampleAnalysis", sampleGraph);
 
         outputFile.Should().NotBeNull();
     }

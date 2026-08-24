@@ -1,15 +1,13 @@
 using System.Collections.Immutable;
 using DataStructures;
-using TestSupport;
 
-namespace OutMapper.Tests;
+namespace TaskManager.Tests;
 
 public class FigurePdfGeneratorTests
 {
     [Fact]
-    public async Task Generate_succeeds_when_the_figure_has_no_labels()
+    public void Generate_succeeds_when_the_figure_has_no_labels()
     {
-        GatewayTestHarness.EnsureInitialized();
         var graph = GraphDrawData.Create(
             channelAName: "Heart rate",
             channelBName: "Blood pressure",
@@ -23,7 +21,7 @@ public class FigurePdfGeneratorTests
             rowCount: 1, colCount: 1, cellHasGraph: [true], graphs: [graph],
             labelStyle: FigureLabelStyle.None).Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
 
-        var pdfBytes = await FigurePdfGenerator.GenerateAsync(figure);
+        var pdfBytes = FigurePdfGenerator.Generate(figure);
 
         pdfBytes.Should().NotBeNull();
     }

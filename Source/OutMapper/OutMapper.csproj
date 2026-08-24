@@ -7,9 +7,6 @@
     <InternalsVisibleTo Include="OutMapper.Tests" />
     <InternalsVisibleTo Include="TestSupport" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-desktop'">
-    <PackageReference Include="SkiaSharp" />
-  </ItemGroup>
   <PropertyGroup>
     <TargetFrameworks>net10.0-desktop;net10.0</TargetFrameworks>
 

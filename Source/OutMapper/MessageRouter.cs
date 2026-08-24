@@ -72,14 +72,8 @@ public static class MessageRouter
             case CreateFigureGraphResponse createFigureGraphResponse:
                 ProjectFigureContent.Current?.OnCreateFigureGraphResponseReceived(createFigureGraphResponse);
                 break;
-            case ComputeHeatmapLayoutResponse computeHeatmapLayoutResponse:
-                GatewayRequestCorrelator.TryComplete(computeHeatmapLayoutResponse);
-                break;
-            case ComputeFigureLayoutResponse computeFigureLayoutResponse:
-                GatewayRequestCorrelator.TryComplete(computeFigureLayoutResponse);
-                break;
-            case BuildFigureDrawDataResponse buildFigureDrawDataResponse:
-                GatewayRequestCorrelator.TryComplete(buildFigureDrawDataResponse);
+            case RenderFigurePreviewResponse renderFigurePreviewResponse:
+                GatewayRequestCorrelator.TryComplete(renderFigurePreviewResponse);
                 break;
         }
     }

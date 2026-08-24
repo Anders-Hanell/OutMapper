@@ -12,4 +12,5 @@ public sealed record GenerateAnalysisGraphResponse(
     int MatchedPatientCount,
     int UnmatchedPatientCount,
     int AmbiguousPatientCount,
-    GraphDrawData? Graph) : Message;
+    GraphDrawData? Graph,
+    string? PdfOutputPath) : Message;

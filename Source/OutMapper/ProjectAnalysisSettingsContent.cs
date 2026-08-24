@@ -461,7 +461,7 @@ public sealed class ProjectAnalysisSettingsContent : Border
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
-    internal async void OnGenerateAnalysisGraphResponseReceived(GenerateAnalysisGraphResponse response)
+    internal void OnGenerateAnalysisGraphResponseReceived(GenerateAnalysisGraphResponse response)
     {
         if (!response.Success)
         {
@@ -469,11 +469,9 @@ public sealed class ProjectAnalysisSettingsContent : Border
             return;
         }
 
-        var outputPath = await AnalysisGraphPdfService.GeneratePdfAsync(response.ProjectFolder, response.AnalysisName, response);
-
-        var resultMessage = outputPath is null
+        var resultMessage = response.PdfOutputPath is null
             ? $"Generated with {response.MatchedPatientCount} of {response.TotalPatientCount} patient(s) matched, but the PDF could not be written."
-            : $"Generated with {response.MatchedPatientCount} of {response.TotalPatientCount} patient(s) matched. Saved to {outputPath}";
+            : $"Generated with {response.MatchedPatientCount} of {response.TotalPatientCount} patient(s) matched. Saved to {response.PdfOutputPath}";
 
         _statusLabel.Text = _pendingRangeWarning is null ? resultMessage : $"{_pendingRangeWarning} {resultMessage}";
         _pendingRangeWarning = null;

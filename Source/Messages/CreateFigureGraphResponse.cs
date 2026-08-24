@@ -7,4 +7,5 @@ public sealed record CreateFigureGraphResponse(
     string FigureName,
     bool Success,
     string? ErrorMessage,
-    FigureDrawData? Figure) : Message;
+    FigureDrawData? Figure,
+    string? PdfOutputPath) : Message;

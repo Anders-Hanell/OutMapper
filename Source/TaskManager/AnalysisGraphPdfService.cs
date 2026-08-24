@@ -1,35 +1,27 @@
 using SkiaSharp;
-using System.IO;
-using Messages;
-using TaskManager;
+using DataStructures;
 using Path = System.IO.Path;
 
-namespace OutMapper;
+namespace TaskManager;
 
+/// <summary>
+/// Draws an Analysis's association grid as an N x M colored heatmap and writes it to the project's
+/// Output folder as "&lt;analysisName&gt;.pdf". Returns the written file path, or null if it could not
+/// be written.
+/// </summary>
 internal static class AnalysisGraphPdfService
 {
-    /// <summary>
-    /// Draws the association grid from a <see cref="GenerateAnalysisGraphResponse"/> as an N x M
-    /// colored heatmap and writes it to the project's Output folder as "&lt;analysisName&gt;.pdf".
-    /// Returns the written file path, or null if it could not be written.
-    /// </summary>
-    public static Task<string?> GeneratePdfAsync(string projectFolder, string analysisName, GenerateAnalysisGraphResponse graph) =>
-        GeneratePdfAsync(LocalFileSystem.Instance, projectFolder, analysisName, graph);
+    private const string ProjectOutputFolderName = "OutMapper_ProjectOutput";
 
-    internal static async Task<string?> GeneratePdfAsync(
-        IFileSystem fileSystem, string? projectFolder, string analysisName, GenerateAnalysisGraphResponse graph)
+    internal static string? GeneratePdf(
+        IFileSystem fileSystem, string? projectFolder, string analysisName, GraphDrawData? graph)
     {
-        if (string.IsNullOrWhiteSpace(projectFolder))
+        if (string.IsNullOrWhiteSpace(projectFolder) || graph is null)
         {
             return null;
         }
 
-        if (graph.Graph is null)
-        {
-            return null;
-        }
-
-        var outputFolder = Path.Combine(projectFolder, ProjectFolderService.ProjectOutputFolderName);
+        var outputFolder = Path.Combine(projectFolder, ProjectOutputFolderName);
         fileSystem.CreateDirectory(outputFolder);
         var outputFile = Path.Combine(outputFolder, analysisName + ".pdf");
 
@@ -52,7 +44,7 @@ internal static class AnalysisGraphPdfService
         using var canvas = document.BeginPage(pageWidth, pageHeight);
         canvas.Clear(SKColors.White);
 
-        await HeatmapDrawing.DrawAsync(canvas, new SKRect(axisLeft, axisTop, axisRight, axisBottom), graph.Graph);
+        HeatmapDrawing.Draw(canvas, new SKRect(axisLeft, axisTop, axisRight, axisBottom), graph);
 
         // Graph title
         using var titlePaint = new SKPaint

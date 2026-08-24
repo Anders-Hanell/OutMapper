@@ -69,6 +69,12 @@ public class FigureServiceTests
         var graph = response.Figure.Graphs.Single();
         graph.DrawAxisTickLabels.Should().BeTrue();
         graph.DrawAxisTitles.Should().BeTrue();
+
+        response.PdfOutputPath.Should().Be(
+            Path.Combine(ProjectFolder, "OutMapper_ProjectOutput", "MyFigure.pdf"));
+        fileSystem.FileExists(response.PdfOutputPath!).Should().BeTrue();
+        var pdfBytes = fileSystem.ReadAllBytes(response.PdfOutputPath!);
+        System.Text.Encoding.ASCII.GetString(pdfBytes, 0, 4).Should().Be("%PDF");
     }
 
     [Fact]

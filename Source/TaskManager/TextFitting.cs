@@ -1,7 +1,7 @@
 using DataStructures;
 using SkiaSharp;
 
-namespace OutMapper;
+namespace TaskManager;
 
 /// <summary>
 /// Computes the largest <see cref="SKFont.Size"/> that fits given text inside a max-width/max-height

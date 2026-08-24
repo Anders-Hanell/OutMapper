@@ -99,7 +99,8 @@ internal static class FigureService
         if (string.IsNullOrWhiteSpace(projectFolder) || string.IsNullOrWhiteSpace(figureName))
         {
             return new CreateFigureGraphResponse(
-                projectFolder ?? string.Empty, figureName, Success: false, "No project or figure was specified.", Figure: null);
+                projectFolder ?? string.Empty, figureName, Success: false, "No project or figure was specified.",
+                Figure: null, PdfOutputPath: null);
         }
 
         switch (BuildDrawData(fileSystem, projectFolder, rowCount, colCount, cellAnalysisNames, labelStyle))
@@ -114,12 +115,16 @@ internal static class FigureService
                 };
                 WriteConfig(fileSystem, projectFolder, figureName, config);
 
-                return new CreateFigureGraphResponse(projectFolder, figureName, Success: true, ErrorMessage: null, success.Value);
+                var pdfOutputPath = FigureGraphPdfService.GeneratePdf(fileSystem, projectFolder, figureName, success.Value);
+                return new CreateFigureGraphResponse(
+                    projectFolder, figureName, Success: true, ErrorMessage: null, success.Value, pdfOutputPath);
             case Failure<FigureDrawData> failure:
-                return new CreateFigureGraphResponse(projectFolder, figureName, Success: false, failure.Error, Figure: null);
+                return new CreateFigureGraphResponse(
+                    projectFolder, figureName, Success: false, failure.Error, Figure: null, PdfOutputPath: null);
             default:
                 return new CreateFigureGraphResponse(
-                    projectFolder, figureName, Success: false, "Could not build the figure's draw data.", Figure: null);
+                    projectFolder, figureName, Success: false, "Could not build the figure's draw data.",
+                    Figure: null, PdfOutputPath: null);
         }
     }
 

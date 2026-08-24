@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Channels;
+using DataStructures;
 using Messages;
 
 namespace TaskManager;
@@ -249,30 +250,22 @@ internal static class TaskManagerService
         return Task.CompletedTask;
     }
 
-    internal static Task HandleComputeHeatmapLayoutRequestAsync(ComputeHeatmapLayoutRequest message)
+    internal static Task HandleRenderFigurePreviewRequestAsync(RenderFigurePreviewRequest message)
     {
-        var result = HeatmapLayoutService.ComputeLayout(
-            message.Data, message.AreaLeft, message.AreaTop, message.AreaWidth, message.AreaHeight);
-
-        GatewayToOutMapper.SendMessage(new ComputeHeatmapLayoutResponse(message.RequestId, result));
-        return Task.CompletedTask;
-    }
-
-    internal static Task HandleComputeFigureLayoutRequestAsync(ComputeFigureLayoutRequest message)
-    {
-        var result = FigureLayoutService.ComputeLayout(message.Figure);
-
-        GatewayToOutMapper.SendMessage(new ComputeFigureLayoutResponse(message.RequestId, result));
-        return Task.CompletedTask;
-    }
-
-    internal static Task HandleBuildFigureDrawDataRequestAsync(BuildFigureDrawDataRequest message)
-    {
-        var result = FigureService.BuildDrawData(
+        var buildResult = FigureService.BuildDrawData(
             LocalFileSystem.Instance, message.ProjectFolder, message.RowCount, message.ColCount,
             message.CellAnalysisNames, message.LabelStyle);
 
-        GatewayToOutMapper.SendMessage(new BuildFigureDrawDataResponse(message.RequestId, result));
+        Result<byte[]> result = buildResult switch
+        {
+            Success<FigureDrawData> success => FigurePreviewRenderer.RenderPng(success.Value, message.MaxDimensionPx) is { } pngBytes
+                ? new Success<byte[]>(pngBytes)
+                : new Failure<byte[]>("Could not render a preview."),
+            Failure<FigureDrawData> failure => new Failure<byte[]>(failure.Error),
+            _ => new Failure<byte[]>("Could not build the figure's draw data.")
+        };
+
+        GatewayToOutMapper.SendMessage(new RenderFigurePreviewResponse(message.RequestId, result));
         return Task.CompletedTask;
     }
 

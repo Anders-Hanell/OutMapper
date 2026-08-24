@@ -1,22 +1,19 @@
 using System.Collections.Immutable;
 using DataStructures;
-using Messages;
-using TaskManager;
 using TestSupport;
 
-namespace OutMapper.Tests;
+namespace TaskManager.Tests;
 
 /// <summary>
-/// Generates a representative sample figure PDF, so its appearance can be inspected directly (e.g. by
-/// Claude's Read tool) while the layout is still evolving.
+/// Generates a representative sample figure preview PNG, so its appearance can be inspected directly
+/// (e.g. by Claude's Read tool) while the preview rendering is still evolving.
 /// </summary>
-public class SampleFigurePdfGenerator
+public class SampleFigurePreviewGenerator
 {
     [Fact]
-    public async Task GenerateSampleFigurePdf()
+    public void GenerateSampleFigurePreviewPng()
     {
-        GatewayTestHarness.EnsureInitialized();
-        var outputDirectory = SampleOutputDirectory.For(nameof(SampleFigurePdfGenerator));
+        var outputDirectory = SampleOutputDirectory.For(nameof(SampleFigurePreviewGenerator));
 
         GraphDrawData Graph(string colorA, string colorB) => GraphDrawData.Create(
             channelAName: "Heart rate",
@@ -35,12 +32,12 @@ public class SampleFigurePdfGenerator
             graphs: new[] { Graph("#2166AC", "#67A9CF"), Graph("#D1E5F0", "#FDDBC7"), Graph("#EF8A62", "#B2182B") },
             labelStyle: FigureLabelStyle.Uppercase).Should().BeOfType<Success<FigureDrawData>>().Subject.Value;
 
-        var response = new CreateFigureGraphResponse(
-            "SampleProject", "SampleFigure", Success: true, ErrorMessage: null, figure);
+        var pngBytes = FigurePreviewRenderer.RenderPng(figure, maxDimensionPx: 900);
 
-        var outputFile = await FigureGraphPdfService.GeneratePdfAsync(
-            LocalFileSystem.Instance, outputDirectory, "SampleFigure", response);
+        pngBytes.Should().NotBeNull();
 
-        outputFile.Should().NotBeNull();
+        LocalFileSystem.Instance.CreateDirectory(outputDirectory);
+        LocalFileSystem.Instance.WriteAllBytes(
+            System.IO.Path.Combine(outputDirectory, "SampleFigurePreview.png"), pngBytes!);
     }
 }

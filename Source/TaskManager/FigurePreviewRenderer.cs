@@ -1,8 +1,7 @@
 using SkiaSharp;
 using DataStructures;
-using Messages;
 
-namespace OutMapper;
+namespace TaskManager;
 
 /// <summary>
 /// Rasterizes a Figure to an in-memory PNG for the on-screen live preview, reusing the same layout
@@ -11,11 +10,10 @@ namespace OutMapper;
 /// </summary>
 internal static class FigurePreviewRenderer
 {
-    internal static async Task<byte[]?> RenderPngAsync(FigureDrawData figure, int maxDimensionPx)
+    internal static byte[]? RenderPng(FigureDrawData figure, int maxDimensionPx)
     {
-        var request = new ComputeFigureLayoutRequest(Guid.NewGuid(), figure);
-        var response = await GatewayRequestCorrelator.SendAsync<ComputeFigureLayoutRequest, ComputeFigureLayoutResponse>(request);
-        if (response.Result is not Success<FigureLayoutData> layoutSuccess)
+        var layoutResult = FigureLayoutService.ComputeLayout(figure);
+        if (layoutResult is not Success<FigureLayoutData> layoutSuccess)
         {
             return null;
         }

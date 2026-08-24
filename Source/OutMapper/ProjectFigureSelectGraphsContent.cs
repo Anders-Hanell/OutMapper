@@ -330,25 +330,19 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             return;
         }
 
-        var buildRequest = new BuildFigureDrawDataRequest(
+        var request = new RenderFigurePreviewRequest(
             Guid.NewGuid(), _currentProjectFolder, _rowCount, _colCount,
-            _cellAnalysisNames.ToImmutableArray(), _labelStyle);
-        var buildResponse = await GatewayRequestCorrelator
-            .SendAsync<BuildFigureDrawDataRequest, BuildFigureDrawDataResponse>(buildRequest);
-        var buildResult = buildResponse.Result;
+            _cellAnalysisNames.ToImmutableArray(), _labelStyle, PreviewMaxDimensionPx);
+        var response = await GatewayRequestCorrelator
+            .SendAsync<RenderFigurePreviewRequest, RenderFigurePreviewResponse>(request);
 
-        if (buildResult is not Success<FigureDrawData> success)
+        if (response.Result is not Success<byte[]> success)
         {
             ShowPreviewPlaceholder("Select at least one graph to preview the figure.");
             return;
         }
 
-        var pngBytes = await FigurePreviewRenderer.RenderPngAsync(success.Value, PreviewMaxDimensionPx);
-        if (pngBytes is null)
-        {
-            ShowPreviewPlaceholder("Could not render a preview.");
-            return;
-        }
+        var pngBytes = success.Value;
 
         var bitmap = new BitmapImage();
         using (var stream = new InMemoryRandomAccessStream())
@@ -406,7 +400,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
         }
     }
 
-    internal async void OnCreateFigureGraphResponseReceived(CreateFigureGraphResponse response)
+    internal void OnCreateFigureGraphResponseReceived(CreateFigureGraphResponse response)
     {
         if (!response.Success)
         {
@@ -414,11 +408,9 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             return;
         }
 
-        var outputPath = await FigureGraphPdfService.GeneratePdfAsync(response.ProjectFolder, response.FigureName, response);
-
-        _statusLabel.Text = outputPath is null
+        _statusLabel.Text = response.PdfOutputPath is null
             ? "Generated, but the PDF could not be written."
-            : $"Saved to {outputPath}";
+            : $"Saved to {response.PdfOutputPath}";
     }
 
     private static Brush? GetThemeBrush(string resourceKey)

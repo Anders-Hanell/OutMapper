@@ -1,7 +1,7 @@
 using SkiaSharp;
 using DataStructures;
 
-namespace OutMapper;
+namespace TaskManager;
 
 /// <summary>
 /// Paints a Figure's laid-out geometry — the per-cell heatmaps and their letter labels — onto any

@@ -1,8 +1,7 @@
 using SkiaSharp;
 using DataStructures;
-using Messages;
 
-namespace OutMapper;
+namespace TaskManager;
 
 /// <summary>
 /// Draws a Figure's PDF bytes in memory — a grid of the Figure's assigned Analysis heatmaps, one small
@@ -12,11 +11,10 @@ namespace OutMapper;
 /// </summary>
 internal static class FigurePdfGenerator
 {
-    internal static async Task<byte[]?> GenerateAsync(FigureDrawData figure)
+    internal static byte[]? Generate(FigureDrawData figure)
     {
-        var request = new ComputeFigureLayoutRequest(Guid.NewGuid(), figure);
-        var response = await GatewayRequestCorrelator.SendAsync<ComputeFigureLayoutRequest, ComputeFigureLayoutResponse>(request);
-        if (response.Result is not Success<FigureLayoutData> layoutSuccess)
+        var layoutResult = FigureLayoutService.ComputeLayout(figure);
+        if (layoutResult is not Success<FigureLayoutData> layoutSuccess)
         {
             return null;
         }

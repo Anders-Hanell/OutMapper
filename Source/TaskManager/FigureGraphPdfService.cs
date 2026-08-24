@@ -1,9 +1,7 @@
-using System.IO;
-using Messages;
-using TaskManager;
+using DataStructures;
 using Path = System.IO.Path;
 
-namespace OutMapper;
+namespace TaskManager;
 
 /// <summary>
 /// Persists a Figure's PDF to the project's Output folder as "&lt;figureName&gt;.pdf". The PDF bytes
@@ -13,29 +11,23 @@ namespace OutMapper;
 /// </summary>
 internal static class FigureGraphPdfService
 {
-    public static Task<string?> GeneratePdfAsync(string projectFolder, string figureName, CreateFigureGraphResponse graph) =>
-        GeneratePdfAsync(LocalFileSystem.Instance, projectFolder, figureName, graph);
+    private const string ProjectOutputFolderName = "OutMapper_ProjectOutput";
 
-    internal static async Task<string?> GeneratePdfAsync(
-        IFileSystem fileSystem, string? projectFolder, string figureName, CreateFigureGraphResponse graph)
+    internal static string? GeneratePdf(
+        IFileSystem fileSystem, string? projectFolder, string figureName, FigureDrawData? figure)
     {
-        if (string.IsNullOrWhiteSpace(projectFolder))
+        if (string.IsNullOrWhiteSpace(projectFolder) || figure is null)
         {
             return null;
         }
 
-        if (graph.Figure is null)
-        {
-            return null;
-        }
-
-        var pdfBytes = await FigurePdfGenerator.GenerateAsync(graph.Figure);
+        var pdfBytes = FigurePdfGenerator.Generate(figure);
         if (pdfBytes is null)
         {
             return null;
         }
 
-        var outputFolder = Path.Combine(projectFolder, ProjectFolderService.ProjectOutputFolderName);
+        var outputFolder = Path.Combine(projectFolder, ProjectOutputFolderName);
         fileSystem.CreateDirectory(outputFolder);
         var outputFile = Path.Combine(outputFolder, figureName + ".pdf");
         fileSystem.WriteAllBytes(outputFile, pdfBytes);
