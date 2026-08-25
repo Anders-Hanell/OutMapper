@@ -29,7 +29,6 @@ public sealed class ProjectFigureSelectGraphsContent : Border
     private readonly TextBlock _statusLabel;
     private readonly Image _previewImage;
     private readonly TextBlock _previewPlaceholder;
-    private readonly DispatcherTimer _previewDebounceTimer;
     private string? _currentProjectFolder;
     private string? _currentFigureName;
     private int _rowCount;
@@ -74,7 +73,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
                 LowercaseLabelsOptionText => FigureLabelStyle.Lowercase,
                 _ => FigureLabelStyle.None
             };
-            SchedulePreviewUpdate();
+            UpdatePreview();
         };
 
         var createButton = new Button
@@ -128,13 +127,6 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             CornerRadius = new CornerRadius(8),
             Background = GetThemeBrush("SystemControlBackgroundChromeMediumBrush"),
             Child = new Grid { Children = { _previewPlaceholder, _previewImage } }
-        };
-
-        _previewDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
-        _previewDebounceTimer.Tick += (_, _) =>
-        {
-            _previewDebounceTimer.Stop();
-            UpdatePreview();
         };
 
         var settingsColumn = new StackPanel
@@ -253,7 +245,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
         if (_rowCount <= 0 || _colCount <= 0)
         {
             _noSizeLabel.Visibility = Visibility.Visible;
-            SchedulePreviewUpdate();
+            UpdatePreview();
             return;
         }
 
@@ -304,7 +296,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
                         _cellAnalysisNames[index] = selected == NoneOptionText ? null : selected;
                     }
 
-                    SchedulePreviewUpdate();
+                    UpdatePreview();
                 };
 
                 Grid.SetRow(comboBox, row);
@@ -313,13 +305,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             }
         }
 
-        SchedulePreviewUpdate();
-    }
-
-    private void SchedulePreviewUpdate()
-    {
-        _previewDebounceTimer.Stop();
-        _previewDebounceTimer.Start();
+        UpdatePreview();
     }
 
     private async void UpdatePreview()
