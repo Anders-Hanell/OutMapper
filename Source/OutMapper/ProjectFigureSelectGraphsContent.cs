@@ -308,7 +308,7 @@ public sealed class ProjectFigureSelectGraphsContent : Border
         UpdatePreview();
     }
 
-    private async void UpdatePreview()
+    private void UpdatePreview()
     {
         if (_currentProjectFolder is null || _rowCount <= 0 || _colCount <= 0)
         {
@@ -316,12 +316,13 @@ public sealed class ProjectFigureSelectGraphsContent : Border
             return;
         }
 
-        var request = new RenderFigurePreviewRequest(
-            Guid.NewGuid(), _currentProjectFolder, _rowCount, _colCount,
-            _cellAnalysisNames.ToImmutableArray(), _labelStyle, PreviewMaxDimensionPx);
-        var response = await GatewayRequestCorrelator
-            .SendAsync<RenderFigurePreviewRequest, RenderFigurePreviewResponse>(request);
+        MessageRouter.SendMessage(new RenderFigurePreviewRequest(
+            _currentProjectFolder, _rowCount, _colCount,
+            _cellAnalysisNames.ToImmutableArray(), _labelStyle, PreviewMaxDimensionPx));
+    }
 
+    internal async void OnRenderFigurePreviewResponseReceived(RenderFigurePreviewResponse response)
+    {
         if (response.Result is not Success<byte[]> success)
         {
             ShowPreviewPlaceholder("Select at least one graph to preview the figure.");

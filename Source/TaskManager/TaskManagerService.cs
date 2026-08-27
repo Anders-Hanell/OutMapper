@@ -265,7 +265,7 @@ internal static class TaskManagerService
             _ => new Failure<byte[]>("Could not build the figure's draw data.")
         };
 
-        GatewayToOutMapper.SendMessage(new RenderFigurePreviewResponse(message.RequestId, result));
+        GatewayToOutMapper.SendMessage(new RenderFigurePreviewResponse(result));
         return Task.CompletedTask;
     }
 

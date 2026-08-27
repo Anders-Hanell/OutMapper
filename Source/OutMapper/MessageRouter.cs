@@ -73,7 +73,7 @@ public static class MessageRouter
                 ProjectFigureContent.Current?.OnCreateFigureGraphResponseReceived(createFigureGraphResponse);
                 break;
             case RenderFigurePreviewResponse renderFigurePreviewResponse:
-                GatewayRequestCorrelator.TryComplete(renderFigurePreviewResponse);
+                ProjectFigureSelectGraphsContent.Current?.OnRenderFigurePreviewResponseReceived(renderFigurePreviewResponse);
                 break;
         }
     }
